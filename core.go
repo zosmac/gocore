@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"unsafe"
 
 	"golang.org/x/tools/go/packages"
@@ -44,26 +45,30 @@ var (
 	}()
 
 	// modules maps a package's directory to its module.
-	modules = map[string]*Module{}
+	modules     = map[string]*Module{}
+	modulesLock sync.Mutex
 )
 
 func Modules(dir string) (*Module, error) {
-	module, ok := modules[dir]
-	if !ok {
-		pkgs, err := packages.Load(
-			&packages.Config{
-				Mode: packages.NeedModule,
-				Dir:  dir,
-			})
-		if err != nil {
-			return nil, err
-		}
-		module = &Module{
-			Path: pkgs[0].Module.Path,
-			Dir:  pkgs[0].Module.Dir,
-		}
-		modules[dir] = module
+	modulesLock.Lock()
+	defer modulesLock.Unlock()
+	if module, ok := modules[dir]; ok {
+		return module, nil
 	}
+
+	pkgs, err := packages.Load(
+		&packages.Config{
+			Mode: packages.NeedModule,
+			Dir:  dir,
+		})
+	if err != nil {
+		return nil, err
+	}
+	module := &Module{
+		Path: pkgs[0].Module.Path,
+		Dir:  pkgs[0].Module.Dir,
+	}
+	modules[dir] = module
 
 	return module, nil
 }

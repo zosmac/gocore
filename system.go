@@ -42,7 +42,7 @@ var (
 type (
 	// names defines a cache type for mapping ids to names.
 	names struct {
-		sync.RWMutex
+		sync.Mutex
 		lookup func(int) string
 		names  map[int]string
 	}
@@ -50,15 +50,14 @@ type (
 
 // lookup retrieves and caches name for id.
 func (ns *names) name(id int) string {
-	ns.RLock()
-	name, ok := ns.names[id]
-	ns.RUnlock()
-	if !ok {
-		name = ns.lookup(id)
-		ns.Lock()
-		ns.names[id] = name
-		ns.Unlock()
+	ns.Lock()
+	defer ns.Unlock()
+	if name, ok := ns.names[id]; ok {
+		return name
 	}
+
+	name := ns.lookup(id)
+	ns.names[id] = name
 	return name
 }
 
