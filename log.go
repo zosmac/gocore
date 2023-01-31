@@ -101,7 +101,7 @@ func logMessage(depth int, name string, err error) *Err {
 
 	_, file, line, _ := runtime.Caller(depth)
 	dir := filepath.Dir(file)
-	mod := Modules(dir)
+	mod, _ := Modules(dir)
 	rel, _ := filepath.Rel(mod.Dir, file)
 
 	msg := fmt.Sprintf("%s [%s %s %s] [%s] [%s/%s:%d] ",

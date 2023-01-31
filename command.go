@@ -45,7 +45,7 @@ var (
 func build() (string, string) {
 	_, n, _, _ := runtime.Caller(2)
 	dir := filepath.Dir(n)
-	mod := Modules(dir)
+	mod, _ := Modules(dir)
 	_, vers, ok := strings.Cut(mod.Dir, "@")
 	if !ok {
 		cmd := exec.Command("git", "show", "-s", "--format=%cI %H")

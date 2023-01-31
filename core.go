@@ -44,25 +44,28 @@ var (
 	}()
 
 	// modules maps a package's directory to its module.
-	modules = map[string]Module{}
+	modules = map[string]*Module{}
 )
 
-func Modules(dir string) Module {
+func Modules(dir string) (*Module, error) {
 	module, ok := modules[dir]
 	if !ok {
-		pkgs, _ := packages.Load(
+		pkgs, err := packages.Load(
 			&packages.Config{
 				Mode: packages.NeedModule,
 				Dir:  dir,
 			})
-		module = Module{
+		if err != nil {
+			return nil, err
+		}
+		module = &Module{
 			Path: pkgs[0].Module.Path,
 			Dir:  pkgs[0].Module.Dir,
 		}
 		modules[dir] = module
 	}
 
-	return module
+	return module, nil
 }
 
 // Define initializes a ValidValue type with its valid values.
