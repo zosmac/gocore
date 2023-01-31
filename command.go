@@ -118,7 +118,10 @@ func Main(fn func(context.Context)) {
 		}
 	}()
 
-	go fn(ctx)
+	go func() {
+		defer wg.Done()
+		fn(ctx)
+	}()
 
 	// run osEnvironment on main thread for the native host application environment setup (e.g. MacOS main run loop)
 	osEnvironment(ctx)
