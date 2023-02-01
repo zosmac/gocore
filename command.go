@@ -57,9 +57,9 @@ func build() (string, string) {
 			if err != nil {
 				panic(fmt.Errorf("time parse failed %s %v", out, err))
 			}
-			vers = t.UTC().Format("v0.0.0-2006010150405-") + h[:12]
+			vers = t.UTC().Format("v0.0.0-20060102150405-") + h[:12]
 		} else {
-			vers = time.Now().UTC().Format("v0.0.0-2006010150405-000000000000")
+			vers = time.Now().UTC().Format("v0.0.0-20060102150405-000000000000")
 		}
 	}
 	return mod.Path, vers
