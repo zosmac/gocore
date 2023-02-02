@@ -41,7 +41,7 @@ var (
 )
 
 // Main drives the show.
-func Main(main func(context.Context), service bool) {
+func Main(main func(context.Context)) {
 	defer os.Exit(exitCode)
 
 	module, vmmp = build()
