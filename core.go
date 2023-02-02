@@ -123,15 +123,15 @@ func Wait(cmd *exec.Cmd) {
 	err := cmd.Wait()
 	state := cmd.ProcessState
 	LogInfo(fmt.Errorf(
-		"Wait() command=%q pid=%d err=%v rc=%d\nsystime=%v, usrtime=%v, sys=%#v usage=%#v",
+		"Wait() command=%q pid=%d err=%v rc=%d systime=%v, usrtime=%v", // \nsys=%#v usage=%#v",
 		cmd.String(),
 		cmd.Process.Pid,
 		err,
 		state.ExitCode(),
 		state.SystemTime(),
 		state.UserTime(),
-		state.Sys(),
-		state.SysUsage(),
+		// state.Sys(),
+		// state.SysUsage(),
 	))
 }
 

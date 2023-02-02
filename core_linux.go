@@ -99,8 +99,3 @@ func Measures(filename string) (map[string]string, error) {
 
 	return m, nil
 }
-
-// osEnvironment starts the native application environment run loop.
-// It must run on the main thread, therefore launch the go application in a go routine.
-func osEnvironment(ctx context.Context) {
-}

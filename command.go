@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -40,6 +39,51 @@ var (
 		return info.ModTime().UTC().Format("2006-01-02 15:04:05 UTC")
 	}()
 )
+
+// Main drives the show.
+func Main(main func(context.Context), service bool) {
+	defer os.Exit(exitCode)
+
+	module, vmmp = build()
+
+	if !parse(os.Args[1:]) {
+		return
+	}
+
+	if Flags.version {
+		version()
+		return
+	}
+
+	ctx, cncl := context.WithCancel(context.Background())
+
+	// set up profiling if requested
+	profile(ctx)
+
+	go func() {
+		main(ctx) // if service exits, proceed with cleanup
+		cncl()    // inform service routines of exit for cleanup
+	}()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var sig os.Signal
+		select {
+		case sig = <-signalChannel():
+			LogError(fmt.Errorf("signal %[1]d (%[1]s) pid %d", sig, os.Getpid()))
+			cncl()
+			<-time.After(time.Millisecond * 200) // wait a moment for contexts to cleanup and exit
+		case <-ctx.Done():
+		}
+	}()
+
+	// run osEnvironment on main thread for the native host application environment setup (e.g. MacOS main run loop)
+	// osEnvironment(ctx)
+
+	wg.Wait()
+}
 
 // build gathers the module and version information for this build.
 func build() (string, string) {
@@ -76,55 +120,4 @@ Compiler   - %s %s_%s
 Copyright © 2021-2023 The Gomon Project.
 `,
 		executable, module, vmmp, buildDate, runtime.Version(), runtime.GOOS, runtime.GOARCH)
-}
-
-// Main drives the show.
-func Main(fn func(context.Context)) {
-	module, vmmp = build()
-
-	if !parse(os.Args[1:]) {
-		return
-	}
-
-	if Flags.version {
-		version()
-		return
-	}
-
-	ctx, cncl := context.WithCancel(context.Background())
-	defer cncl()
-
-	// set up profiling if requested
-	profile(ctx)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		sig := <-signalChannel()
-		LogError(fmt.Errorf("signal %[1]d (%[1]s) pid %d", sig, os.Getpid()))
-		switch sig := sig.(type) {
-		case syscall.Signal:
-			switch sig {
-			case syscall.SIGSEGV:
-				buf := make([]byte, 16384)
-				n := runtime.Stack(buf, true)
-				fmt.Fprintln(os.Stderr, string(buf[:n]))
-			default:
-			}
-			cncl()                    // signal all service routines to cleanup and exit
-			<-time.After(time.Second) // wait a bit for all resource cleanup to complete
-			os.Exit(exitCode)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		fn(ctx)
-	}()
-
-	// run osEnvironment on main thread for the native host application environment setup (e.g. MacOS main run loop)
-	osEnvironment(ctx)
-
-	wg.Wait()
 }

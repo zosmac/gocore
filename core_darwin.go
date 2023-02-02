@@ -4,88 +4,21 @@ package gocore
 
 /*
 #cgo CFLAGS: -x objective-c -std=gnu11 -fobjc-arc
-#cgo LDFLAGS: -framework CoreServices -framework CoreFoundation -framework AppKit -framework Foundation -framework IOKit
-#import <CoreServices/CoreServices.h>
+#cgo LDFLAGS: -framework CoreFoundation
 #import <CoreFoundation/CoreFoundation.h>
-#import <Foundation/Foundation.h>
-#import <AppKit/AppKit.h>
-#include <dispatch/dispatch.h>
 #include <libproc.h>
 #include <sys/sysctl.h>
 
-void *CopyCFString(char *s) { // required to avoid go vet "possible misuse of unsafe.Pointer"
+static void *
+copyCFString(char *s) { // required to avoid go vet "possible misuse of unsafe.Pointer"
 	return (void*)CFStringCreateWithCString(nil, s, kCFStringEncodingUTF8);
-}
-
-// The following code invoked by C.Run() is to capture dynamically the system appearance.
-// Simply querying the NSApplication effective appearance is insufficient if no view defined.
-
-extern void darkmode(BOOL);
-
-@interface MyView : NSView
-@end
-
-@implementation MyView
-- (id)initWithFrame:(CGRect)frame
-{
-    self = [super initWithFrame:frame];
-    return self;
-}
-- (void)viewDidChangeEffectiveAppearance {
-	NSString *name = [[self effectiveAppearance] name];
-	NSLog(@"Changed Appearance is %@", name);
-	name = [[self effectiveAppearance]
-		bestMatchFromAppearancesWithNames: @[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]];
-	darkmode((name == NSAppearanceNameDarkAqua) ? TRUE : FALSE);
-}
-@end
-
-@interface MyAppDelegate : NSObject<NSApplicationDelegate>
-@end
-
-@implementation MyAppDelegate
-- (void)applicationDidFinishLaunching:(NSNotification*)note {
-	NSLog(@"Finish launch notification is %@", [note description]);
-}
-- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)app {
-	NSLog(@"Application should terminate %@", [app description]);
-	return NSTerminateNow;
-}
-@end
-
-static void
-Run() {
-	[NSApplication sharedApplication]; // initialize the application
-	[NSApp setDelegate: [[MyAppDelegate alloc] init]];
-
-	NSRect rect = NSMakeRect(100.0, 100.0, 100.0, 100.0);
-	NSWindow *window = [[NSWindow alloc]
-		initWithContentRect:rect
-           	      styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable
-               	    backing:NSBackingStoreBuffered
-                   	  defer:NO
-	];
-
-	rect = [[window contentView] frame];
-	MyView *view = [[MyView alloc] initWithFrame: rect];
-	[window setContentView: view];
-	[NSApp hide:nil];
-
-	[NSApp run];
-}
-
-static void
-terminate() {
-	[NSApp terminate: nil];
 }
 */
 import "C"
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"syscall"
 	"time"
 	"unsafe"
@@ -95,6 +28,8 @@ import (
 // CoreFoundation (C.CF...) types externalize these locally defined types as gocore package types. Casting C.CF...Ref
 // arguments to gocore.CF...Ref enables callers from other packages by using the gocore package type name.
 type (
+	// CFTypeRef creates gocore package alias for type
+	CFTypeRef = C.CFTypeRef
 	// CFStringRef creates gocore package alias for type
 	CFStringRef = C.CFStringRef
 	// CFNumberRef creates gocore package alias for type
@@ -170,7 +105,7 @@ func MountMap() (map[string]string, error) {
 func CreateCFString(s string) unsafe.Pointer {
 	cs := C.CString(s)
 	defer C.free(unsafe.Pointer(cs))
-	return unsafe.Pointer(C.CopyCFString(cs))
+	return unsafe.Pointer(C.copyCFString(cs))
 }
 
 // GetCFString gets a Go string from a CFString
@@ -273,25 +208,21 @@ func GetCFValue(v unsafe.Pointer) interface{} {
 	}
 }
 
-// osEnvironment starts the native application environment run loop.
-// Note that a native application environment runs on the main thread.
-// Therefore, launch the gomon command Main() in a go routine.
-func osEnvironment(ctx context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			buf := make([]byte, 4096)
-			n := runtime.Stack(buf, false)
-			buf = buf[:n]
-			LogError(fmt.Errorf("osEnvironment panicked, %v\n%s", r, buf))
-		}
-	}()
+// darkmode is called from viewDidChangeEffectiveAppearance to report changes to the system appearance.
+// It must be defined separately from the declaration in core_darwin.go to prevent duplicate symbol link error.
+// From the CGO documentation (https://golang.google.cn/cmd/cgo#hdr-C_references_to_Go):
+//
+//	Using //export in a file places a restriction on the preamble: since it is copied into two different
+//	C output files, it must not contain any definitions, only declarations. If a file contains both definitions
+//	and declarations, then the two output files will produce duplicate symbols and the linker will fail. To avoid
+//	this, definitions must be placed in preambles in other files, or in C source files.
+//
+//export darkmode
+// func darkmode(dark bool) {
+// 	DarkAppearance = dark
+// }
 
-	runtime.LockOSThread() // tie this goroutine to the main OS thread
-	defer runtime.UnlockOSThread()
-
-	go func() {
-		<-ctx.Done()
-		C.terminate()
-	}()
-	C.Run()
+//export darkmode
+func darkmode(dark C.bool) {
+	DarkAppearance = bool(dark)
 }

@@ -82,9 +82,3 @@ func MountMap() (map[string]string, error) {
 type win32OperatingSystem struct {
 	LastBootUpTime time.Time // Field names in the structure must match names in the WMI Class
 }
-
-// osEnvironment starts the native application environment run loop.
-// Note that a native application environment runs on the main thread.
-// Therefore, launch the gomon command Main() in a go routine.
-func osEnvironment(ctx context.Context) {
-}
