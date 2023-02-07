@@ -10,21 +10,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sync"
 	"unsafe"
-
-	"golang.org/x/tools/go/packages"
 )
 
 type (
 	// ValidValue defines list of values that are valid for a type safe string.
 	ValidValue[T ~string] map[T]int
-
-	// Module records the directory location of go.mod and the module's path.
-	Module struct {
-		Dir  string
-		Path string
-	}
 )
 
 const (
@@ -43,35 +34,7 @@ var (
 		}
 		return binary.LittleEndian
 	}()
-
-	// modules maps a package's directory to its module.
-	modules     = map[string]*Module{}
-	modulesLock sync.Mutex
 )
-
-func Modules(dir string) (*Module, error) {
-	modulesLock.Lock()
-	defer modulesLock.Unlock()
-	if module, ok := modules[dir]; ok {
-		return module, nil
-	}
-
-	pkgs, err := packages.Load(
-		&packages.Config{
-			Mode: packages.NeedModule,
-			Dir:  dir,
-		})
-	if err != nil {
-		return nil, err
-	}
-	module := &Module{
-		Path: pkgs[0].Module.Path,
-		Dir:  pkgs[0].Module.Dir,
-	}
-	modules[dir] = module
-
-	return module, nil
-}
 
 // Define initializes a ValidValue type with its valid values.
 func (vv ValidValue[T]) Define(values ...T) ValidValue[T] {
@@ -122,14 +85,22 @@ func ChDir(dir string) (string, error) {
 func Wait(cmd *exec.Cmd) {
 	err := cmd.Wait()
 	state := cmd.ProcessState
+	var stderr string
+	if err != nil {
+		if err, ok := err.(*exec.ExitError); ok {
+			stderr = string(err.Stderr)
+		}
+	}
+	// log.DefaultLogger.Info(
 	LogInfo(fmt.Errorf(
-		"Wait() command=%q pid=%d err=%v rc=%d systime=%v, usrtime=%v", // \nsys=%#v usage=%#v",
+		"Wait() command=%q pid=%d err=%v rc=%d systime=%v, usrtime=%v stderr=%s", // \nsys=%#v usage=%#v",
 		cmd.String(),
 		cmd.Process.Pid,
 		err,
 		state.ExitCode(),
 		state.SystemTime(),
 		state.UserTime(),
+		stderr,
 		// state.Sys(),
 		// state.SysUsage(),
 	))

@@ -217,10 +217,6 @@ func GetCFValue(v unsafe.Pointer) interface{} {
 //	and declarations, then the two output files will produce duplicate symbols and the linker will fail. To avoid
 //	this, definitions must be placed in preambles in other files, or in C source files.
 //
-//export darkmode
-// func darkmode(dark bool) {
-// 	DarkAppearance = dark
-// }
 
 //export darkmode
 func darkmode(dark C.bool) {

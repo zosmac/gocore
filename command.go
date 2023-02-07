@@ -10,13 +10,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 )
 
 var (
-	// Hostname identifies the host.
-	Hostname, _ = os.Hostname()
+	// Host identifies the local host.
+	Host, _ = os.Hostname()
 
 	// executable identifies the full command path.
 	executable, _ = os.Executable()
@@ -42,8 +41,6 @@ var (
 
 // Main drives the show.
 func Main(main func(context.Context)) {
-	defer os.Exit(exitCode)
-
 	module, vmmp = build()
 
 	if !parse(os.Args[1:]) {
@@ -55,41 +52,29 @@ func Main(main func(context.Context)) {
 		return
 	}
 
-	ctx, cncl := context.WithCancel(context.Background())
+	// ctx, cncl := context.WithCancel(context.Background())
+	ctx, stop := signalContext()
 
 	// set up profiling if requested
 	profile(ctx)
 
 	go func() {
 		main(ctx) // if service exits, proceed with cleanup
-		cncl()    // inform service routines of exit for cleanup
-	}()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		var sig os.Signal
-		select {
-		case sig = <-signalChannel():
-			LogError(fmt.Errorf("signal %[1]d (%[1]s) pid %d", sig, os.Getpid()))
-			cncl()
-			<-time.After(time.Millisecond * 200) // wait a moment for contexts to cleanup and exit
-		case <-ctx.Done():
-		}
+		stop()    // inform service routines of exit for cleanup
 	}()
 
 	// run osEnvironment on main thread for the native host application environment setup (e.g. MacOS main run loop)
 	// osEnvironment(ctx)
 
-	wg.Wait()
+	<-ctx.Done()
+	<-time.After(time.Millisecond * 1000) // wait a moment for contexts to cleanup and exit
 }
 
 // build gathers the module and version information for this build.
 func build() (string, string) {
 	_, n, _, _ := runtime.Caller(2)
 	dir := filepath.Dir(n)
-	mod, _ := Modules(dir)
+	mod := Module(dir)
 	_, vers, ok := strings.Cut(mod.Dir, "@")
 	if !ok {
 		cmd := exec.Command("git", "show", "-s", "--format=%cI %H")

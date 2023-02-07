@@ -45,11 +45,10 @@ const (
 	volumeNameNT  = 2
 )
 
-// signalChannel returns channel on which OS signals are delivered.
-func signalChannel() <-chan os.Signal {
-	signalChan := make(chan os.Signal, 1)   // use buffered channel to ensure signal delivery
-	signal.Notify(signalChan, os.Interrupt) // only os.Interrupt (ctrl-C, ctrl-Break) can be caught on Windows
-	return signalChan
+// signalContext returns context for detecting interrupt signal.
+func signalContext() (context.Context, context.CancelFunc) {
+	// ignore these signals to enable to continue running
+	return signal.NotifyContext(context.Background(), os.Interrupt)
 }
 
 // FdPath gets the path for an open file descriptor

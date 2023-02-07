@@ -80,7 +80,7 @@ import "C"
 // occasionally result in
 //   Terminating app due to uncaught exception 'NSInternalInconsistencyException',
 //   reason: 'NSWindow drag regions should only be invalidated on the Main Thread!'
-// Therefore, abandoning this attempt at NSApp integration.
+// Therefore, suspending this attempt at NSApp integration for now.
 
 // func osEnvironment(ctx context.Context) {
 // 	defer func() {

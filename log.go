@@ -31,13 +31,8 @@ const (
 	levelError
 )
 
-const (
-	exitSuccess = iota
-	exitWarn
-	exitError
-)
-
 var (
+	// logLeveel maps parsed log levels to level index.
 	logLevel = func() int {
 		switch strings.ToUpper(os.Getenv("LOG_LEVEL")) {
 		case "TRACE":
@@ -51,9 +46,6 @@ var (
 		}
 		return levelInfo
 	}()
-
-	// exitCode: 0 SUCCESS, 1 WARN, 2 ERROR
-	exitCode = exitSuccess
 )
 
 // Error method to comply with error interface
@@ -101,7 +93,7 @@ func logMessage(depth int, name string, err error) *Err {
 
 	_, file, line, _ := runtime.Caller(depth)
 	dir := filepath.Dir(file)
-	mod, _ := Modules(dir)
+	mod := Module(dir)
 	rel, _ := filepath.Rel(mod.Dir, file)
 
 	msg := fmt.Sprintf("%s [%s %s %s] [%s] [%s/%s:%d] ",
@@ -154,17 +146,11 @@ func LogWarn(err error) {
 	if logLevel <= levelWarn {
 		logWrite("WARN", err)
 	}
-	if exitCode < exitWarn {
-		exitCode = exitWarn
-	}
 }
 
 // LogError log error message, setting exit code to ERROR.
 func LogError(err error) {
 	if logLevel <= levelError {
 		logWrite("ERROR", err)
-	}
-	if exitCode < exitError {
-		exitCode = exitError
 	}
 }

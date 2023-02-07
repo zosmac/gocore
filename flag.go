@@ -103,9 +103,6 @@ func init() {
 // parse inspects the command line.
 func parse(args []string) bool {
 	if err := Flags.Parse(args); err != nil {
-		if !errors.Is(err, flag.ErrHelp) {
-			exitCode = exitError
-		}
 		return false
 	}
 

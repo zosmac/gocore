@@ -5,6 +5,7 @@
 package gocore
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -16,12 +17,11 @@ var (
 	euid = os.Geteuid()
 )
 
-// signalChannel returns channel on which OS signals are delivered.
-func signalChannel() <-chan os.Signal {
-	signalChan := make(chan os.Signal, 1) // use buffered channel to ensure signal delivery
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+// signalContext returns context for detecting interrupt signal.
+func signalContext() (context.Context, context.CancelFunc) {
+	// ignore these signals to enable to continue running
 	signal.Ignore(syscall.SIGWINCH, syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
-	return signalChan
+	return signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 }
 
 // seteuid gomon to file owner.
