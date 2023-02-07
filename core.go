@@ -3,13 +3,14 @@
 package gocore
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"unsafe"
 )
 
@@ -81,8 +82,42 @@ func ChDir(dir string) (string, error) {
 	return dir, err
 }
 
-// Wait for a started command to complete and report its exit status.
-func Wait(cmd *exec.Cmd) {
+// IsTerminal reports if a file handle is connected to the terminal.
+func IsTerminal(f *os.File) bool {
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	terminal := os.ModeDevice | os.ModeCharDevice
+	return info.Mode()&terminal == terminal
+}
+
+// StartCommand starts a command and returns a scanner for reading stdout.
+func StartCommand(ctx context.Context, cmdline []string) (*bufio.Scanner, error) {
+	cmd := exec.CommandContext(ctx, cmdline[0], cmdline[1:]...)
+
+	cmd.ExtraFiles = extraFiles()
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, Error("StdoutPipe()", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, Error("Start()", err)
+	}
+
+	LogInfo(fmt.Errorf(
+		"Start() command=%q pid=%d",
+		cmd.String(),
+		cmd.Process.Pid,
+	))
+
+	go wait(cmd)
+
+	return bufio.NewScanner(stdout), nil
+}
+
+// wait for a started command to complete and report its exit status.
+func wait(cmd *exec.Cmd) {
 	err := cmd.Wait()
 	state := cmd.ProcessState
 	var stderr string
@@ -104,20 +139,4 @@ func Wait(cmd *exec.Cmd) {
 		// state.Sys(),
 		// state.SysUsage(),
 	))
-}
-
-// IsTerminal reports if a file handle is connected to the terminal.
-func IsTerminal(f *os.File) bool {
-	info, err := f.Stat()
-	if err != nil {
-		return false
-	}
-	mode := info.Mode()
-
-	// see https://github.com/golang/go/issues/23123
-	if runtime.GOOS == "windows" {
-		return mode&os.ModeCharDevice == os.ModeCharDevice
-	}
-
-	return mode&(os.ModeDevice|os.ModeCharDevice) == (os.ModeDevice | os.ModeCharDevice)
 }

@@ -99,3 +99,26 @@ func Measures(filename string) (map[string]string, error) {
 
 	return m, nil
 }
+
+// extraFiles called by StartCommand to nil fds beyond 2 (stderr) so that they are closed on exec.
+func extraFiles() []*os.File {
+	dirname := filepath.Join("/proc", "self", "fd")
+	if dir, err := os.Open(dirname); err == nil {
+		fds, err := dir.Readdirnames(0)
+		dir.Close()
+		if err == nil {
+			maxFd := -1
+			for _, fd := range fds {
+				if n, err := strconv.Atoi(fd); err == nil && n > maxFd {
+					maxFd = n
+				}
+			}
+			// ensure that no open descriptors propagate to child
+			if maxFd >= 3 {
+				return make([]*os.File, maxFd-3) // close gomon files in child
+			}
+		}
+	}
+
+	return nil
+}

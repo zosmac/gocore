@@ -9,8 +9,9 @@ package gocore
 #include <libproc.h>
 #include <sys/sysctl.h>
 
+// createCFString required to avoid go vet warning "possible misuse of unsafe.Pointer".
 static void *
-copyCFString(char *s) { // required to avoid go vet "possible misuse of unsafe.Pointer"
+createCFString(char *s) {
 	return (void*)CFStringCreateWithCString(nil, s, kCFStringEncodingUTF8);
 }
 */
@@ -95,8 +96,8 @@ func MountMap() (map[string]string, error) {
 		if f.Blocks == 0 {
 			continue
 		}
-		m[C.GoString((*C.char)(unsafe.Pointer(&f.Mntonname[0])))] =
-			C.GoString((*C.char)(unsafe.Pointer(&f.Mntfromname[0])))
+		m[C.GoString((*C.char)(&f.Mntonname[0]))] =
+			C.GoString((*C.char)(&f.Mntfromname[0]))
 	}
 	return m, nil
 }
@@ -105,7 +106,7 @@ func MountMap() (map[string]string, error) {
 func CreateCFString(s string) unsafe.Pointer {
 	cs := C.CString(s)
 	defer C.free(unsafe.Pointer(cs))
-	return unsafe.Pointer(C.copyCFString(cs))
+	return unsafe.Pointer(C.createCFString(cs))
 }
 
 // GetCFString gets a Go string from a CFString
@@ -221,4 +222,20 @@ func GetCFValue(v unsafe.Pointer) interface{} {
 //export darkmode
 func darkmode(dark C.bool) {
 	DarkAppearance = bool(dark)
+}
+
+// extraFiles called by StartCommand to nil fds beyond 2 (stderr) so that they are closed on exec.
+func extraFiles() []*os.File {
+	// ensure that no open descriptors propagate to child
+	if n := C.proc_pidinfo(
+		C.int(os.Getpid()),
+		C.PROC_PIDLISTFDS,
+		0,
+		nil,
+		0,
+	); n >= 3*C.PROC_PIDLISTFD_SIZE {
+		return make([]*os.File, (n/C.PROC_PIDLISTFD_SIZE)-3) // close gomon files in child
+	}
+
+	return nil
 }
