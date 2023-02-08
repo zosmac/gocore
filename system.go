@@ -33,6 +33,7 @@ type (
 	modval struct {
 		Dir  string
 		Path string
+		Pkg  string
 	}
 )
 
@@ -111,7 +112,7 @@ func (addr hname) lookup() string {
 func (dir moddir) lookup() modval {
 	pkgs, err := packages.Load(
 		&packages.Config{
-			Mode: packages.NeedModule,
+			Mode: packages.NeedName | packages.NeedModule,
 			Dir:  string(dir),
 		})
 	if err != nil {
@@ -120,6 +121,7 @@ func (dir moddir) lookup() modval {
 	return modval{
 		Path: pkgs[0].Module.Path,
 		Dir:  pkgs[0].Module.Dir,
+		Pkg:  pkgs[0].Name,
 	}
 }
 
