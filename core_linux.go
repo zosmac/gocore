@@ -4,7 +4,6 @@ package gocore
 
 import (
 	"bufio"
-	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -66,7 +65,7 @@ func FdPath(fd int) (string, error) {
 func MountMap() (map[string]string, error) {
 	f, err := os.Open("/etc/mtab")
 	if err != nil {
-		return nil, err
+		return nil, Error("Open /etc/mtab", err)
 	}
 	defer f.Close()
 	m := map[string]string{"/": ""} // have "/" at a minimum

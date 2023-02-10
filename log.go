@@ -58,7 +58,7 @@ func (err *Err) Unwrap() error {
 	return err.err
 }
 
-// NewError formats an error with function name, errno number, and error message, with location
+// Error formats an error with function name and error message, with code location
 // details for initial error, preserving the initial logged error for percolation.
 func Error(name string, err error) *Err {
 	return logMessage(2, name, err)
@@ -66,7 +66,7 @@ func Error(name string, err error) *Err {
 
 // Unsupported reports that a specific OS does not support a function
 func Unsupported() error {
-	return fmt.Errorf("%s unsupported", runtime.GOOS)
+	return Error("Unsupported", fmt.Errorf(runtime.GOOS))
 }
 
 // logWrite writes a log message to the log destination.
