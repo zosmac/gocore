@@ -47,7 +47,6 @@ const (
 
 // signalContext returns context for detecting interrupt signal.
 func signalContext() (context.Context, context.CancelFunc) {
-	// ignore these signals to enable to continue running
 	return signal.NotifyContext(context.Background(), os.Interrupt)
 }
 
@@ -80,4 +79,9 @@ func MountMap() (map[string]string, error) {
 // See https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/win32-operatingsystem
 type win32OperatingSystem struct {
 	LastBootUpTime time.Time // Field names in the structure must match names in the WMI Class
+}
+
+// extraFiles called by StartCommand to nil fds beyond 2 (stderr) so that they are closed on exec.
+func extraFiles() []*os.File {
+	return nil
 }
