@@ -101,19 +101,17 @@ func init() {
 }
 
 // parse inspects the command line.
-func parse(args []string) bool {
+func parse(args []string) error {
 	if err := Flags.Parse(args); err != nil {
-		return false
+		return Error("parse arguments", err)
 	}
 
 	if Flags.NArg() > Flags.argsMax { // too many arguments?
 		args := strings.Join(Flags.Args()[Flags.NArg()-Flags.argsMax-1:], " ")
-		logBuf.WriteString("invalid arguments: " + args + "\n")
-		usage()
-		return false
+		return Error("unexpected arguments", fmt.Errorf(args))
 	}
 
-	return true
+	return nil
 }
 
 // usage formats the flags Usage message for gomon.

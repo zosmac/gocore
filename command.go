@@ -40,10 +40,11 @@ var (
 )
 
 // Main drives the show.
-func Main(main func(context.Context)) {
+func Main(main func(context.Context) error) {
 	module, vmmp = build()
 
-	if !parse(os.Args[1:]) {
+	if err := parse(os.Args[1:]); err != nil {
+		LogError(err)
 		return
 	}
 
@@ -59,8 +60,10 @@ func Main(main func(context.Context)) {
 	profile(ctx)
 
 	go func() {
-		main(ctx) // if service exits, proceed with cleanup
-		stop()    // inform service routines of exit for cleanup
+		if err := main(ctx); err != nil {
+			LogError(err)
+		}
+		stop() // on exit, inform service routines to cleanup
 	}()
 
 	// run osEnvironment on main thread for the native host application environment setup (e.g. MacOS main run loop)

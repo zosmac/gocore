@@ -15,21 +15,31 @@ import (
 )
 
 type (
+	// name is generic type for cached value.
 	name[V any] interface {
 		comparable
 		lookup() V
 	}
 
-	// names defines a type for mapping ids to names.
+	// cache defines a type for mapping ids to names.
 	cache[K name[V], V any] struct {
 		sync.Mutex
 		names map[K]V
 	}
 
-	uname  int
-	gname  int
-	hname  netip.Addr
+	// uname is key to cached user name.
+	uname int
+
+	// gname is key to cached group name.
+	gname int
+
+	// hname is key to cached host name.
+	hname netip.Addr
+
+	// moddir is key to cached go module information.
 	moddir string
+
+	// modval is cached value of module information.
 	modval struct {
 		Dir  string
 		Path string
@@ -41,9 +51,16 @@ var (
 	// DarkAppearance indicates whether system appearance is "dark" or "light"
 	DarkAppearance bool
 
+	// unames is the cache of user names.
 	unames = cache[uname, string]{names: map[uname]string{}}
+
+	// gnames is the cache of group names.
 	gnames = cache[gname, string]{names: map[gname]string{}}
+
+	// hnames is the cache of host names.
 	hnames = cache[hname, string]{names: map[hname]string{}}
+
+	// mnames is the cache of go module information.
 	mnames = cache[moddir, modval]{names: map[moddir]modval{}}
 )
 
@@ -66,10 +83,12 @@ func Hostname(addr string) string {
 	return lookup(hname(ip), &hnames)
 }
 
+// Module retrieves and caches go module information.
 func Module(dir string) modval {
 	return lookup(moddir(dir), &mnames)
 }
 
+// lookup looks up a cached value by key.
 func lookup[K name[V], V any](key K, names *cache[K, V]) V {
 	names.Lock()
 	defer names.Unlock()
@@ -78,9 +97,12 @@ func lookup[K name[V], V any](key K, names *cache[K, V]) V {
 		return val
 	}
 
-	return key.lookup()
+	val := key.lookup()
+	names.names[key] = val
+	return val
 }
 
+// lookup retrieves a user name.
 func (uid uname) lookup() string {
 	name := strconv.Itoa(int(uid))
 	if u, err := user.LookupId(name); err == nil {
@@ -89,6 +111,7 @@ func (uid uname) lookup() string {
 	return name
 }
 
+// lookup retrieves a group name.
 func (gid gname) lookup() string {
 	name := strconv.Itoa(int(gid))
 	if g, err := user.LookupGroupId(name); err == nil {
@@ -97,9 +120,10 @@ func (gid gname) lookup() string {
 	return name
 }
 
+// lookup retrieves a host name.
 func (addr hname) lookup() string {
 	ip := netip.Addr(addr).String()
-	go func() { // initiate hostname lookup
+	go func() { // initiate host name lookup
 		if hs, err := net.LookupAddr(ip); err == nil {
 			hnames.Lock()
 			hnames.names[addr] = hs[0]
@@ -109,6 +133,7 @@ func (addr hname) lookup() string {
 	return ip
 }
 
+// lookup retrieves go module information.
 func (dir moddir) lookup() modval {
 	pkgs, err := packages.Load(
 		&packages.Config{
