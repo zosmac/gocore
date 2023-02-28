@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -117,11 +118,11 @@ func parse(args []string) error {
 // usage formats the flags Usage message for gomon.
 func usage() {
 	if !IsTerminal(os.Stderr) && logBuf.Len() > 0 { // if called by go's flag package parser, may have error text
-		LogError(errors.New(strings.TrimSpace(logBuf.String()))) // in that case report it
+		LogError("terminal", errors.New(strings.TrimSpace(logBuf.String()))) // in that case report it
 		return
 	}
 
-	logBuf.WriteString("NAME:\n  " + commandName)
+	logBuf.WriteString("NAME:\n  " + filepath.Base(executable))
 	logBuf.WriteString("\n\nDESCRIPTION:\n  " + Flags.CommandDescription)
 
 	var names []string
@@ -133,7 +134,7 @@ func usage() {
 	for _, name := range names {
 		flags = append(flags, flagSyntax[name])
 	}
-	logBuf.WriteString("\n\nUSAGE:\n  " + commandName + " [-help] " + strings.Join(flags, " "))
+	logBuf.WriteString("\n\nUSAGE:\n  " + filepath.Base(executable) + " [-help] " + strings.Join(flags, " "))
 
 	if len(Flags.ArgumentDescriptions) > 0 {
 		for _, args := range Flags.ArgumentDescriptions {

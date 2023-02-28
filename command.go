@@ -4,9 +4,12 @@ package gocore
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -17,14 +20,16 @@ var (
 	// Host identifies the local host.
 	Host, _ = os.Hostname()
 
+	// username for the current invocation of command.
+	username = func() string {
+		if u, err := user.Current(); err == nil {
+			return u.Username
+		}
+		return ""
+	}()
+
 	// executable identifies the full command path.
 	executable, _ = os.Executable()
-
-	// commandName is the base name of the executable.
-	commandName = filepath.Base(executable)
-
-	// commandLine contains the full path to the command and each argument.
-	commandLine = append([]string{executable}, os.Args[1:]...)
 
 	// module identifies the module's package path.
 	module string
@@ -35,7 +40,7 @@ var (
 	// buildDate sets the build date for the command.
 	buildDate = func() string {
 		info, _ := os.Stat(executable)
-		return info.ModTime().UTC().Format("2006-01-02 15:04:05 UTC")
+		return info.ModTime().UTC().Format("2006-01-02T15:04:05Z")
 	}()
 )
 
@@ -44,7 +49,9 @@ func Main(main func(context.Context) error) {
 	module, vmmp = build()
 
 	if err := parse(os.Args[1:]); err != nil {
-		LogError(err)
+		if !errors.Is(err, flag.ErrHelp) {
+			LogError("", err)
+		}
 		return
 	}
 
@@ -61,7 +68,7 @@ func Main(main func(context.Context) error) {
 
 	go func() {
 		if err := main(ctx); err != nil {
-			LogError(err)
+			LogError("", err)
 		}
 		stop() // on exit, inform service routines to cleanup
 	}()
@@ -75,25 +82,20 @@ func Main(main func(context.Context) error) {
 
 // build gathers the module and version information for this build.
 func build() (string, string) {
-	_, n, _, _ := runtime.Caller(2)
-	dir := filepath.Dir(n)
-	mod := Module(dir)
+	_, file, _, _ := runtime.Caller(2)
+	mod := Module(filepath.Dir(file))
 	_, vers, ok := strings.Cut(mod.Dir, "@")
 	if !ok {
+		// get git repo time and hash
 		cmd := exec.Command("git", "show", "-s", "--format=%cI %H")
 		cmd.Dir = mod.Dir
-		out, err := cmd.Output()
-		if err == nil {
-			tm, h, _ := strings.Cut(string(out), " ")
-			t, err := time.Parse(time.RFC3339, tm)
-			if err != nil {
-				panic(fmt.Errorf("time parse failed %s %v", out, err))
-			}
-			vers = t.UTC().Format("v0.0.0-20060102150405-") + h[:12]
-		} else {
-			vers = time.Now().UTC().Format("v0.0.0-20060102150405-000000000000")
-		}
+		out, _ := cmd.Output()
+		tm, hash, _ := strings.Cut(string(out), " ")
+		t, _ := time.Parse(time.RFC3339, tm)
+		hash = strings.TrimSpace(hash) + strings.Repeat("0", 12)
+		vers = "v0.0.0-" + t.UTC().Format("20060102150405-") + hash[:12]
 	}
+
 	return mod.Path, vers
 }
 

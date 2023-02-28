@@ -15,7 +15,7 @@ import (
 func profile(ctx context.Context) {
 	if Flags.cpuprofile {
 		if f, err := os.CreateTemp("", "pprof_"); err != nil {
-			LogError(Error("-cpuprofile", err))
+			LogError("cpuprofile", err)
 		} else {
 			go func() {
 				pprof.StartCPUProfile(f)
@@ -35,7 +35,7 @@ func profile(ctx context.Context) {
 
 	if Flags.memprofile {
 		if f, err := os.CreateTemp(".", "mprof_"); err != nil {
-			LogError(Error("-memprofile", err))
+			LogError("-memprofile", err)
 		} else {
 			go func() {
 				<-ctx.Done()

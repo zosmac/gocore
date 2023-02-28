@@ -27,7 +27,7 @@ func signalContext() (context.Context, context.CancelFunc) {
 // seteuid gomon to file owner.
 func Seteuid() {
 	err := syscall.Seteuid(euid)
-	LogInfo(fmt.Errorf("Seteuid results, uid: %d, euid: %d, err: %v",
+	LogInfo("Seteuid", fmt.Errorf("uid: %d, euid: %d err: %v",
 		os.Getuid(),
 		os.Geteuid(),
 		err,
@@ -37,7 +37,7 @@ func Seteuid() {
 // setuid gomon to user.
 func Setuid() {
 	err := syscall.Seteuid(os.Getuid())
-	LogInfo(fmt.Errorf("Setuid results, uid: %d, euid: %d, err: %v",
+	LogInfo("Setuid", fmt.Errorf("uid: %d, euid: %d err: %v",
 		os.Getuid(),
 		os.Geteuid(),
 		err,

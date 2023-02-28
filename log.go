@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/user"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -18,8 +16,11 @@ import (
 type (
 	// Err custom logging error type
 	Err struct {
-		s   string
-		err error
+		user   string
+		file   string
+		line   int
+		detail string
+		err    error
 	}
 )
 
@@ -50,7 +51,17 @@ var (
 
 // Error method to comply with error interface
 func (err *Err) Error() string {
-	return err.s
+	return fmt.Sprintf("%s [%s %s %s] [%s] [%s:%d] %s%s",
+		os.Args,
+		executable,
+		vmmp,
+		buildDate,
+		err.user,
+		err.file,
+		err.line,
+		err.detail,
+		err.err.Error(),
+	)
 }
 
 // Unwrap method to comply with error interface
@@ -70,9 +81,9 @@ func Unsupported() error {
 }
 
 // logWrite writes a log message to the log destination.
-func logWrite(level string, err error) {
-	if msg := logMessage(3, "", err); msg != nil {
-		log.Printf("%s %-5s %s", time.Now().Format(TimeFormat), level, msg)
+func logWrite(level string, name string, err error) {
+	if err := logMessage(3, name, err); err != nil {
+		log.Printf("%s %-5s %s", time.Now().Format(TimeFormat), level, err.Error())
 	}
 }
 
@@ -86,71 +97,57 @@ func logMessage(depth int, name string, err error) *Err {
 		return e // percolate original Err
 	}
 
-	var username string
-	if u, err := user.Current(); err == nil {
-		username = u.Username
-	}
-
 	_, file, line, _ := runtime.Caller(depth)
-	dir := filepath.Dir(file)
-	mod := Module(dir)
-	rel, _ := filepath.Rel(mod.Dir, file)
 
-	msg := fmt.Sprintf("%s [%s %s %s] [%s] [%s/%s:%d] ",
-		commandLine,
-		commandName,
-		vmmp,
-		buildDate,
-		username,
-		mod.Path,
-		rel,
-		line,
-	)
-
+	var detail string
 	if name != "" {
-		msg += name + ": "
+		detail += name + ": "
 	}
 	var errno syscall.Errno
 	if errors.As(err, &errno) {
-		msg += fmt.Sprintf("errno %d: ", errno)
+		detail += fmt.Sprintf("errno %d: ", errno)
 	}
+
 	return &Err{
-		s:   msg + err.Error(),
-		err: err,
+		user:   username,
+		file:   file,
+		line:   line,
+		detail: detail,
+		err:    err,
 	}
 }
 
 // LogTrace log trace message.
-func LogTrace(err error) {
+func LogTrace(name string, err error) {
 	if logLevel <= levelTrace {
-		logWrite("TRACE", err)
+		logWrite("TRACE", name, err)
 	}
 }
 
 // LogDebug log debug message.
-func LogDebug(err error) {
+func LogDebug(name string, err error) {
 	if logLevel <= levelDebug {
-		logWrite("DEBUG", err)
+		logWrite("DEBUG", name, err)
 	}
 }
 
 // LogInfo log info message (default logging level).
-func LogInfo(err error) {
+func LogInfo(name string, err error) {
 	if logLevel <= levelInfo {
-		logWrite("INFO", err)
+		logWrite("INFO", name, err)
 	}
 }
 
 // LogWarn log warning message, setting exit code to WARN.
-func LogWarn(err error) {
+func LogWarn(name string, err error) {
 	if logLevel <= levelWarn {
-		logWrite("WARN", err)
+		logWrite("WARN", name, err)
 	}
 }
 
 // LogError log error message, setting exit code to ERROR.
-func LogError(err error) {
+func LogError(name string, err error) {
 	if logLevel <= levelError {
-		logWrite("ERROR", err)
+		logWrite("ERROR", name, err)
 	}
 }

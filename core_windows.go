@@ -81,7 +81,7 @@ type win32OperatingSystem struct {
 	LastBootUpTime time.Time // Field names in the structure must match names in the WMI Class
 }
 
-// extraFiles called by StartCommand to nil fds beyond 2 (stderr) so that they are closed on exec.
+// extraFiles called by Spawn to nil fds beyond 2 (stderr) so that they are closed on exec.
 func extraFiles() []*os.File {
 	return nil
 }

@@ -56,7 +56,7 @@ var (
 			unsafe.Pointer(nil),
 			0,
 		); rv != 0 {
-			LogError(Error("sysctl kern.boottime", err))
+			LogError("sysctl kern.boottime", err)
 			return time.Time{}
 		}
 
@@ -224,7 +224,7 @@ func darkmode(dark C.bool) {
 	DarkAppearance = bool(dark)
 }
 
-// extraFiles called by StartCommand to nil fds beyond 2 (stderr) so that they are closed on exec.
+// extraFiles called by Spawn to nil fds beyond 2 (stderr) so that they are closed on exec.
 func extraFiles() []*os.File {
 	// ensure that no open descriptors propagate to child
 	if n := C.proc_pidinfo(

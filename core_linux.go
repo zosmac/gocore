@@ -17,7 +17,7 @@ var (
 	Boottime = func() time.Time {
 		f, err := os.Open("/proc/stat")
 		if err != nil {
-			LogError(Error("/proc/stat open", err))
+			LogError("/proc/stat open", err)
 			return time.Time{}
 		}
 		defer f.Close()
@@ -29,14 +29,14 @@ var (
 			case "btime":
 				sec, err := strconv.Atoi(v)
 				if err != nil {
-					LogError(Error("/proc/stat btime", err))
+					LogError("/proc/stat btime", err)
 					return time.Time{}
 				}
 				return time.Unix(int64(sec), 0)
 			}
 		}
 
-		LogError(Error("/proc/stat btime", sc.Err()))
+		LogError("/proc/stat btime", sc.Err())
 		return time.Time{}
 	}()
 )
@@ -99,7 +99,7 @@ func Measures(filename string) (map[string]string, error) {
 	return m, nil
 }
 
-// extraFiles called by StartCommand to nil fds beyond 2 (stderr) so that they are closed on exec.
+// extraFiles called by Spawn to nil fds beyond 2 (stderr) so that they are closed on exec.
 func extraFiles() []*os.File {
 	dirname := filepath.Join("/proc", "self", "fd")
 	if dir, err := os.Open(dirname); err == nil {

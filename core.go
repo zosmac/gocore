@@ -92,24 +92,20 @@ func IsTerminal(f *os.File) bool {
 	return info.Mode()&terminal == terminal
 }
 
-// StartCommand starts a command and returns a scanner for reading stdout.
-func StartCommand(ctx context.Context, cmdline []string) (*bufio.Scanner, error) {
+// Spawn starts a command and returns a scanner for reading stdout.
+func Spawn(ctx context.Context, cmdline []string) (*bufio.Scanner, error) {
 	cmd := exec.CommandContext(ctx, cmdline[0], cmdline[1:]...)
 
 	cmd.ExtraFiles = extraFiles()
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, Error("StdoutPipe()", err)
+		return nil, Error("StdoutPipe", err)
 	}
 	if err := cmd.Start(); err != nil {
-		return nil, Error("Start()", err)
+		return nil, Error("Start", err)
 	}
 
-	LogInfo(fmt.Errorf(
-		"Start() command=%q pid=%d",
-		cmd.String(),
-		cmd.Process.Pid,
-	))
+	LogInfo("spawn", fmt.Errorf("command=%q pid=%d", cmd.String(), cmd.Process.Pid))
 
 	go wait(cmd)
 
@@ -127,16 +123,14 @@ func wait(cmd *exec.Cmd) {
 		}
 	}
 	// log.DefaultLogger.Info(
-	LogInfo(fmt.Errorf(
-		"Wait() command=%q pid=%d err=%v rc=%d systime=%v, usrtime=%v stderr=%s", // \nsys=%#v usage=%#v",
-		cmd.String(),
+	LogInfo("exit", fmt.Errorf(
+		"%s pid=%d err=%q rc=%d systime=%v usrtime=%v stderr=%s",
+		cmd.Args[0],
 		cmd.Process.Pid,
 		err,
 		state.ExitCode(),
 		state.SystemTime(),
 		state.UserTime(),
 		stderr,
-		// state.Sys(),
-		// state.SysUsage(),
 	))
 }
