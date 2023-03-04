@@ -9,28 +9,35 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// ValueYaml uses the keypath to extract the nested element from a yaml configuration.
-func ValueYaml(keypath []string, y interface{}) string {
-	return strings.TrimSpace(valueYaml(keypath, y))
+// YamlMap reads a YAML configuration into a MapSlice.
+func YamlMap(yml string) (*yaml.MapSlice, error) {
+	ms := yaml.MapSlice{}
+	err := yaml.Unmarshal([]byte(yml), &ms)
+	return &ms, err
 }
 
-// valueYaml uses the keypath to extract the nested element from a yaml configuration.
-func valueYaml(keypath []string, y interface{}) string {
+// YamlValue uses the keypath to extract the nested element from a yaml configuration.
+func YamlValue(keypath []string, yml interface{}) string {
+	return strings.TrimSpace(yamlValue(keypath, yml))
+}
+
+// yamlValue uses the keypath to extract the nested element from a yaml configuration.
+func yamlValue(keypath []string, yml interface{}) string {
 	if len(keypath) == 0 {
-		return decodeYaml("", y)
+		return yamlDecode("", yml)
 	}
 	var is []interface{}
-	switch y := y.(type) {
+	switch yml := yml.(type) {
 	default:
-		return fmt.Sprint(y)
+		return fmt.Sprint(yml)
 	case yaml.MapItem:
-		if keypath[0] == y.Key {
-			return decodeYaml("", y.Value)
+		if keypath[0] == yml.Key {
+			return yamlDecode("", yml.Value)
 		}
 	case []interface{}:
-		is = y
+		is = yml
 	case yaml.MapSlice:
-		for _, m := range y {
+		for _, m := range yml {
 			is = append(is, m)
 		}
 	}
@@ -40,35 +47,35 @@ func valueYaml(keypath []string, y interface{}) string {
 		case yaml.MapSlice:
 			if keypath[0] == i[0].Key {
 				if len(keypath) == 1 {
-					return decodeYaml("", is)
+					return yamlDecode("", is)
 				}
 				if v, ok := i[0].Value.(string); ok {
 					if keypath[1] == v {
-						return valueYaml(keypath[2:], i)
+						return yamlValue(keypath[2:], i)
 					}
 				} else {
-					return valueYaml(keypath[1:], i)
+					return yamlValue(keypath[1:], i)
 				}
 			}
 		case yaml.MapItem:
 			if keypath[0] == i.Key {
 				if _, ok := i.Value.(string); ok && len(keypath) > 1 {
-					return valueYaml(keypath[1:], i)
+					return yamlValue(keypath[1:], i)
 				}
-				return valueYaml(keypath[1:], i.Value)
+				return yamlValue(keypath[1:], i.Value)
 			}
 		}
 	}
 	return ""
 }
 
-// decodeYaml decodes the yaml object value
-func decodeYaml(indent string, y interface{}) string {
+// yamlDecode decodes the yaml object value
+func yamlDecode(indent string, yml interface{}) string {
 	var s string
-	switch y := y.(type) {
+	switch yml := yml.(type) {
 	case yaml.MapSlice:
 		s = "\n"
-		for _, i := range y {
+		for _, i := range yml {
 			if len(indent) > 1 && indent[len(indent)-2] == '-' {
 				s += indent[2:]
 				indent = indent[:len(indent)-2]
@@ -76,27 +83,27 @@ func decodeYaml(indent string, y interface{}) string {
 				s += indent
 			}
 			s += i.Key.(string) + ":"
-			s += decodeYaml(indent+"  ", i.Value)
+			s += yamlDecode(indent+"  ", i.Value)
 		}
 	case []interface{}:
-		if len(y) == 0 {
+		if len(yml) == 0 {
 			return " []\n"
 		}
-		for _, i := range y {
-			s += decodeYaml(indent+"- ", i)
+		for _, i := range yml {
+			s += yamlDecode(indent+"- ", i)
 		}
 	default:
 		if len(indent) > 1 && indent[len(indent)-2] == '-' {
-			return fmt.Sprintf("\n%s%s", indent[2:], y)
+			return fmt.Sprintf("\n%s%s", indent[2:], yml)
 		}
-		return fmt.Sprintf(" %v\n", y)
+		return fmt.Sprintf(" %v\n", yml)
 	}
 	return s
 }
 
-// y is an example prometheus.yml file to test decoding.
+// yml is an example prometheus.yml file to test decoding.
 /*
-var y = []byte(`
+var yml = []byte(`
 global:
   scrape_interval: 15s
   scrape_timeout: 10s
@@ -146,33 +153,33 @@ func test() {
 	var dur time.Duration
 
 	keypath = []string{"scrape_configs"}
-	val = ValueYaml(keypath, y)
+	val = ValueYaml(keypath, yml)
 	fmt.Fprintf(os.Stderr, "keypath %v value %s\n", keypath, val)
 
 	keypath = []string{"scrape_configs", "job_name"}
-	val = ValueYaml(keypath, y)
+	val = ValueYaml(keypath, yml)
 	fmt.Fprintf(os.Stderr, "keypath %v value %s\n", keypath, val)
 
 	keypath = []string{"scrape_configs", "job_name", "gomon"}
-	val = ValueYaml(keypath, y)
+	val = ValueYaml(keypath, yml)
 	fmt.Fprintf(os.Stderr, "keypath %v value %s\n", keypath, val)
 
 	keypath = []string{"scrape_configs", "job_name", "grafana", "static_configs"}
-	val = ValueYaml(keypath, y)
+	val = ValueYaml(keypath, yml)
 	fmt.Fprintf(os.Stderr, "keypath %v value %s\n", keypath, val)
 
 	keypath = []string{"alerting", "alertmanagers", "static_configs", "scheme"}
-	val = ValueYaml(keypath, y)
+	val = ValueYaml(keypath, yml)
 	fmt.Fprintf(os.Stderr, "keypath %v value %s\n", keypath, val)
 
 	keypath = []string{"global", "scrape_interval"}
-	val = ValueYaml(keypath, y)
+	val = ValueYaml(keypath, yml)
 	fmt.Fprintf(os.Stderr, "keypath %v value %s\n", keypath, val)
 	dur, _ = time.ParseDuration(strings.TrimSpace(val))
 	fmt.Fprintf(os.Stderr, "default scrape_interval is %v\n", dur)
 
 	keypath = []string{"scrape_configs", "job_name", "gomon", "scrape_interval"}
-	val = ValueYaml(keypath, y)
+	val = ValueYaml(keypath, yml)
 	fmt.Fprintf(os.Stderr, "keypath %v value %s\n", keypath, val)
 	dur, _ = time.ParseDuration(strings.TrimSpace(val))
 	fmt.Fprintf(os.Stderr, "gomon scrape_interval is %v\n", dur)
