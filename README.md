@@ -2,12 +2,13 @@
 
 The gocore package provides core functions for Go language commands.
 
-The functions support
+The functions provide
 
 - a command line framework
 - extensions to the Go flag package
 - help for command syntax
 - enhanced logging
+- sub-process spawner
 
 The gocore package defines the following command line flags:
 
