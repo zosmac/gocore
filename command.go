@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -19,14 +18,6 @@ import (
 var (
 	// Host identifies the local host.
 	Host, _ = os.Hostname()
-
-	// username for the current invocation of command.
-	username = func() string {
-		if u, err := user.Current(); err == nil {
-			return u.Username
-		}
-		return ""
-	}()
 
 	// executable identifies the full command path.
 	executable, _ = os.Executable()

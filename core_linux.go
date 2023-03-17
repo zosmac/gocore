@@ -42,23 +42,39 @@ var (
 )
 
 // GoStringN interprets a null terminated C char array as a GO string.
-func GoStringN[S int8 | byte, L int | uint | int8 | uint8 | int16 | uint16 | int32 | uint32 | int64 | uint64](p *S, l L) string {
-	s := make([]byte, l)
-	var i L
-	for ; i < l; i++ {
-		if *p == 0 {
+func GoString[C int8 | byte](char *C) string {
+	buf := []byte{}
+	for *char != 0 {
+		buf = append(buf, byte(*char))
+		char = (*C)(unsafe.Add(unsafe.Pointer(char), 1))
+	}
+	return string(buf)
+}
+
+// GoStringN interprets a length specified and possibly null terminated C char array as a GO string.
+func GoStringN[
+	C int8 | byte,
+	L int | uint | int8 | uint8 | int16 | uint16 | int32 | uint32 | int64 | uint64,
+](char *C, l L) string {
+	if l == 0 {
+		return GoString(char)
+	}
+	buf := make([]byte, l)
+	cs := unsafe.Slice(char, l)
+	var c C
+	var i int
+	for i, c = range cs {
+		if c == 0 {
 			break
 		}
-		s[i] = byte(*p)
-		p = (*S)(unsafe.Add(unsafe.Pointer(p), 1))
+		buf[i] = byte(c)
 	}
-	return string(s[:i])
+	return string(buf[:i])
 }
 
 // FdPath gets the path for an open file descriptor.
 func FdPath(fd int) (string, error) {
-	pid := os.Getpid()
-	return os.Readlink(filepath.Join("/proc", strconv.Itoa(pid), "fd", strconv.Itoa(fd)))
+	return os.Readlink(filepath.Join("/proc", "self", "fd", strconv.Itoa(fd)))
 }
 
 // MountMap builds a map of mount points to file systems.

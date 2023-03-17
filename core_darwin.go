@@ -49,7 +49,7 @@ var (
 		var timespec C.struct_timespec
 		size := C.size_t(C.sizeof_struct_timespec)
 		if rv, err := C.sysctl(
-			(*C.int)(unsafe.Pointer(&[2]C.int{C.CTL_KERN, C.KERN_BOOTTIME})),
+			&[]C.int{C.CTL_KERN, C.KERN_BOOTTIME}[0],
 			2,
 			unsafe.Pointer(&timespec),
 			&size,
@@ -66,10 +66,9 @@ var (
 
 // FdPath gets the path for an open file descriptor.
 func FdPath(fd int) (string, error) {
-	pid := C.int(os.Getpid())
 	var fdi C.struct_vnode_fdinfowithpath
 	if n, err := C.proc_pidfdinfo(
-		pid,
+		C.int(os.Getpid()),
 		C.int(fd),
 		C.PROC_PIDFDVNODEPATHINFO,
 		unsafe.Pointer(&fdi),
@@ -160,8 +159,8 @@ func GetCFArray(a CFArrayRef) []interface{} {
 	vs := make([]unsafe.Pointer, c)
 	C.CFArrayGetValues(a, C.CFRange{length: c, location: 0}, &vs[0])
 
-	for i := 0; i < int(c); i++ {
-		s[i] = GetCFValue(vs[i])
+	for i, v := range vs {
+		s[i] = GetCFValue(v)
 	}
 
 	return s
@@ -178,12 +177,11 @@ func GetCFDictionary(d CFDictionaryRef) map[string]interface{} {
 	vs := make([]unsafe.Pointer, c)
 	C.CFDictionaryGetKeysAndValues(d, &ks[0], &vs[0])
 
-	for i := 0; i < c; i++ {
-		if C.CFGetTypeID(C.CFTypeRef(ks[i])) != C.CFStringGetTypeID() {
+	for i, k := range ks {
+		if C.CFGetTypeID(C.CFTypeRef(k)) != C.CFStringGetTypeID() {
 			continue
 		}
-		k := GetCFString(CFStringRef(ks[i]))
-		m[k] = GetCFValue(vs[i])
+		m[GetCFString(CFStringRef(k))] = GetCFValue(vs[i])
 	}
 
 	return m

@@ -3,30 +3,18 @@
 package gocore
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"os/user"
 	"runtime"
 	"strconv"
-	"sync"
 	"time"
 
 	"golang.org/x/tools/go/packages"
 )
 
 type (
-	// name is generic type for cached value.
-	name[V any] interface {
-		comparable
-		lookup() V
-	}
-
-	// cache defines a type for mapping ids to names.
-	cache[K name[V], V any] struct {
-		sync.Mutex
-		names map[K]V
-	}
-
 	// uname is key to cached user name.
 	uname int
 
@@ -34,7 +22,7 @@ type (
 	gname int
 
 	// hname is key to cached host name.
-	hname netip.Addr
+	hname string
 
 	// moddir is key to cached go module information.
 	moddir string
@@ -52,103 +40,17 @@ var (
 	DarkAppearance bool
 
 	// unames is the cache of user names.
-	unames = cache[uname, string]{names: map[uname]string{}}
+	unames = newCache(username)
 
 	// gnames is the cache of group names.
-	gnames = cache[gname, string]{names: map[gname]string{}}
+	gnames = newCache(groupname)
 
 	// hnames is the cache of host names.
-	hnames = cache[hname, string]{names: map[hname]string{}}
+	hnames = newCache(hostname)
 
 	// mnames is the cache of go module information.
-	mnames = cache[moddir, modval]{names: map[moddir]modval{}}
+	mnames = newCache(modinfo)
 )
-
-// Username retrieves and caches user name for uid.
-func Username(uid int) string {
-	return lookup(uname(uid), &unames)
-}
-
-// Groupname retrieves and caches group name for gid.
-func Groupname(gid int) string {
-	return lookup(gname(gid), &gnames)
-}
-
-// Hostname retrieves and caches host name for ip address.
-func Hostname(addr string) string {
-	ip, err := netip.ParseAddr(addr)
-	if err != nil {
-		return addr
-	}
-	return lookup(hname(ip), &hnames)
-}
-
-// Module retrieves and caches go module information.
-func Module(dir string) modval {
-	return lookup(moddir(dir), &mnames)
-}
-
-// lookup looks up a cached value by key.
-func lookup[K name[V], V any](key K, names *cache[K, V]) V {
-	names.Lock()
-	defer names.Unlock()
-
-	if val, ok := names.names[key]; ok {
-		return val
-	}
-
-	val := key.lookup()
-	names.names[key] = val
-	return val
-}
-
-// lookup retrieves a user name.
-func (uid uname) lookup() string {
-	name := strconv.Itoa(int(uid))
-	if u, err := user.LookupId(name); err == nil {
-		name = u.Name
-	}
-	return name
-}
-
-// lookup retrieves a group name.
-func (gid gname) lookup() string {
-	name := strconv.Itoa(int(gid))
-	if g, err := user.LookupGroupId(name); err == nil {
-		name = g.Name
-	}
-	return name
-}
-
-// lookup retrieves a host name.
-func (addr hname) lookup() string {
-	ip := netip.Addr(addr).String()
-	go func() { // initiate host name lookup
-		if hs, err := net.LookupAddr(ip); err == nil {
-			hnames.Lock()
-			hnames.names[addr] = hs[0]
-			hnames.Unlock()
-		}
-	}()
-	return ip
-}
-
-// lookup retrieves go module information.
-func (dir moddir) lookup() modval {
-	pkgs, err := packages.Load(
-		&packages.Config{
-			Mode: packages.NeedName | packages.NeedModule,
-			Dir:  string(dir),
-		})
-	if err != nil {
-		return modval{}
-	}
-	return modval{
-		Path: pkgs[0].Module.Path,
-		Dir:  pkgs[0].Module.Dir,
-		Pkg:  pkgs[0].Name,
-	}
-}
 
 // MsToTime converts Unix era milliseconds to Go time.Time.
 func MsToTime(ms uint64) time.Time {
@@ -163,4 +65,87 @@ func MsToTime(ms uint64) time.Time {
 	}
 
 	return time.Unix(s, n)
+}
+
+// Username retrieves and caches user name for uid.
+func Username(uid int) string {
+	value, _ := unames.lookup(uname(uid))
+	return value
+}
+
+// Groupname retrieves and caches group name for gid.
+func Groupname(gid int) string {
+	value, _ := gnames.lookup(gname(gid))
+	return value
+}
+
+// Hostname retrieves and caches host name for ip address.
+func Hostname(addr string) string {
+	value, err := hnames.lookup(hname(addr))
+
+	if err != nil { // error requests network lookup of hostname
+		go func() {
+			hnames.Lock()
+			defer hnames.Unlock()
+			if hs, err := net.LookupAddr(addr); err == nil {
+				hnames.values[hname(addr)] = hs[0]
+			}
+		}()
+	}
+
+	return value
+}
+
+// Module retrieves and caches go module information.
+func Module(dir string) modval {
+	value, _ := mnames.lookup(moddir(dir))
+	return value
+}
+
+// lookup retrieves a user name.
+func username(uid uname) (string, error) {
+	name := strconv.Itoa(int(uid))
+	u, err := user.LookupId(name)
+	if err == nil {
+		name = u.Name
+	}
+	return name, nil
+}
+
+// groupname retrieves a group name.
+func groupname(gid gname) (string, error) {
+	name := strconv.Itoa(int(gid))
+	g, err := user.LookupGroupId(name)
+	if err == nil {
+		name = g.Name
+	}
+	return name, nil
+}
+
+// hostname retrieves a host name.
+func hostname(addr hname) (string, error) {
+	name := string(addr)
+	ip, err := netip.ParseAddr(name)
+	if err != nil {
+		return name, nil
+	}
+	name = netip.Addr(ip).String() // normalize name
+	return name, errors.New("lookup hostname")
+}
+
+// modinfo retrieves go module information.
+func modinfo(dir moddir) (modval, error) {
+	pkgs, err := packages.Load(
+		&packages.Config{
+			Mode: packages.NeedName | packages.NeedModule,
+			Dir:  string(dir),
+		})
+	if err != nil {
+		return modval{}, nil
+	}
+	return modval{
+		Path: pkgs[0].Module.Path,
+		Dir:  pkgs[0].Module.Dir,
+		Pkg:  pkgs[0].Name,
+	}, nil
 }

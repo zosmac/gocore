@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	// euid gets the executable's owner id.
+	// euid gets the executable file's owner id.
 	euid = os.Geteuid()
 )
 
@@ -24,7 +24,7 @@ func signalContext() (context.Context, context.CancelFunc) {
 	return signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 }
 
-// seteuid gomon to file owner.
+// seteuid current process to file owner.
 func Seteuid() {
 	err := syscall.Seteuid(euid)
 	LogInfo("Seteuid", fmt.Errorf("uid: %d, euid: %d err: %v",
@@ -34,7 +34,7 @@ func Seteuid() {
 	))
 }
 
-// setuid gomon to user.
+// setuid current process to user.
 func Setuid() {
 	err := syscall.Seteuid(os.Getuid())
 	LogInfo("Setuid", fmt.Errorf("uid: %d, euid: %d err: %v",

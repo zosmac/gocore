@@ -109,7 +109,7 @@ func logMessage(depth int, name string, err error) *Err {
 	}
 
 	return &Err{
-		user:   username,
+		user:   Username(os.Getuid()),
 		file:   file,
 		line:   line,
 		detail: detail,
