@@ -129,16 +129,16 @@ func GetCFString(p CFStringRef) string {
 }
 
 // GetCFNumber gets a Go numeric type from a CFNumber
-func GetCFNumber(n CFNumberRef) interface{} {
+func GetCFNumber(n CFNumberRef) any {
 	var i int64
 	var f float64
 	t := C.CFNumberType(C.kCFNumberSInt64Type)
 	p := unsafe.Pointer(&i)
-	v := interface{}(&i)
+	v := any(&i)
 	if C.CFNumberIsFloatType(n) == C.true {
 		t = C.kCFNumberFloat64Type
 		p = unsafe.Pointer(&f)
-		v = interface{}(&f)
+		v = any(&f)
 	}
 	C.CFNumberGetValue(n, t, p)
 	if _, ok := v.(*int64); ok {
@@ -153,9 +153,9 @@ func GetCFBoolean(b CFBooleanRef) bool {
 }
 
 // GetCFArray gets a Go slice from a CFArray
-func GetCFArray(a CFArrayRef) []interface{} {
+func GetCFArray(a CFArrayRef) []any {
 	c := C.CFArrayGetCount(a)
-	s := make([]interface{}, c)
+	s := make([]any, c)
 	vs := make([]unsafe.Pointer, c)
 	C.CFArrayGetValues(a, C.CFRange{length: c, location: 0}, &vs[0])
 
@@ -167,12 +167,12 @@ func GetCFArray(a CFArrayRef) []interface{} {
 }
 
 // GetCFDictionary gets a Go map from a CFDictionary
-func GetCFDictionary(d CFDictionaryRef) map[string]interface{} {
+func GetCFDictionary(d CFDictionaryRef) map[string]any {
 	if d == 0 {
 		return nil
 	}
 	c := int(C.CFDictionaryGetCount(d))
-	m := make(map[string]interface{}, c)
+	m := make(map[string]any, c)
 	ks := make([]unsafe.Pointer, c)
 	vs := make([]unsafe.Pointer, c)
 	C.CFDictionaryGetKeysAndValues(d, &ks[0], &vs[0])
@@ -187,7 +187,7 @@ func GetCFDictionary(d CFDictionaryRef) map[string]interface{} {
 	return m
 }
 
-func GetCFValue(v unsafe.Pointer) interface{} {
+func GetCFValue(v unsafe.Pointer) any {
 	switch id := C.CFGetTypeID(C.CFTypeRef(v)); id {
 	case C.CFStringGetTypeID():
 		return GetCFString(CFStringRef(v))

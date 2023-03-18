@@ -15,11 +15,11 @@ import (
 
 type (
 	// Formatter function prototype for functions that encode values for the Format function.
-	Formatter func(name, tag string, val reflect.Value) interface{}
+	Formatter func(name, tag string, val reflect.Value) any
 )
 
 // Format recurses through a structures' fields to encode them using the Formatter.
-func Format(name, tag string, val reflect.Value, fn Formatter) (ms []interface{}) {
+func Format(name, tag string, val reflect.Value, fn Formatter) (ms []any) {
 	s := strings.Split(tag, ",")
 	if len(s) > 2 && (s[2][0] == '!' && s[2][1:] == runtime.GOOS || s[2][0] != '!' && s[2] != runtime.GOOS) {
 		return nil

@@ -48,7 +48,7 @@ var (
 )
 
 // Var maps a flag field to its name and description, and adds a brief description
-func (f *flags) Var(field interface{}, name, syntax, detail string) {
+func (f *flags) Var(field any, name, syntax, detail string) {
 	flagSyntax[name] = syntax
 	switch field := field.(type) {
 	case *int:

@@ -85,10 +85,10 @@ func Hostname(addr string) string {
 
 	if err != nil { // error requests network lookup of hostname
 		go func() {
-			hnames.Lock()
-			defer hnames.Unlock()
 			if hs, err := net.LookupAddr(addr); err == nil {
+				hnames.Lock()
 				hnames.values[hname(addr)] = hs[0]
+				hnames.Unlock()
 			}
 		}()
 	}

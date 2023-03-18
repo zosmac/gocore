@@ -17,16 +17,16 @@ func YamlMap(yml string) (*yaml.MapSlice, error) {
 }
 
 // YamlValue uses the keypath to extract the nested element from a yaml configuration.
-func YamlValue(keypath []string, yml interface{}) string {
+func YamlValue(keypath []string, yml any) string {
 	return strings.TrimSpace(yamlValue(keypath, yml))
 }
 
 // yamlValue uses the keypath to extract the nested element from a yaml configuration.
-func yamlValue(keypath []string, yml interface{}) string {
+func yamlValue(keypath []string, yml any) string {
 	if len(keypath) == 0 {
 		return yamlDecode("", yml)
 	}
-	var is []interface{}
+	var is []any
 	switch yml := yml.(type) {
 	default:
 		return fmt.Sprint(yml)
@@ -34,7 +34,7 @@ func yamlValue(keypath []string, yml interface{}) string {
 		if keypath[0] == yml.Key {
 			return yamlDecode("", yml.Value)
 		}
-	case []interface{}:
+	case []any:
 		is = yml
 	case yaml.MapSlice:
 		for _, m := range yml {
@@ -70,7 +70,7 @@ func yamlValue(keypath []string, yml interface{}) string {
 }
 
 // yamlDecode decodes the yaml object value
-func yamlDecode(indent string, yml interface{}) string {
+func yamlDecode(indent string, yml any) string {
 	var s string
 	switch yml := yml.(type) {
 	case yaml.MapSlice:
@@ -85,7 +85,7 @@ func yamlDecode(indent string, yml interface{}) string {
 			s += i.Key.(string) + ":"
 			s += yamlDecode(indent+"  ", i.Value)
 		}
-	case []interface{}:
+	case []any:
 		if len(yml) == 0 {
 			return " []\n"
 		}
