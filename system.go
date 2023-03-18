@@ -85,7 +85,7 @@ func Hostname(addr string) string {
 
 	if err != nil { // error requests network lookup of hostname
 		go func() {
-			if hs, err := net.LookupAddr(addr); err == nil {
+			if hs, err := net.LookupAddr(value); err == nil { // use normalized name for lookup
 				hnames.Lock()
 				hnames.values[hname(addr)] = hs[0]
 				hnames.Unlock()
