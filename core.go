@@ -82,6 +82,17 @@ func ChDir(dir string) (string, error) {
 	return dir, err
 }
 
+// Subdir acts like filepath.Rel() but returns an error if the target path is not on the base path.
+func Subdir(base, targ string) (string, error) {
+	if rel, err := filepath.Rel(base, targ); err != nil {
+		return "", err
+	} else if len(rel) > 1 && rel[:2] == ".." {
+		return "", fmt.Errorf("target path %s is not on base path %s", targ, base)
+	} else {
+		return rel, nil
+	}
+}
+
 // IsTerminal reports if a file handle is connected to the terminal.
 func IsTerminal(f *os.File) bool {
 	info, err := f.Stat()
