@@ -56,7 +56,7 @@ var (
 			unsafe.Pointer(nil),
 			0,
 		); rv != 0 {
-			LogError("sysctl kern.boottime", err)
+			Error("sysctl kern.boottime", err).Err()
 			return time.Time{}
 		}
 
@@ -74,7 +74,7 @@ func FdPath(fd int) (string, error) {
 		unsafe.Pointer(&fdi),
 		C.PROC_PIDFDVNODEPATHINFO_SIZE,
 	); n <= 0 {
-		return "", Error("proc_pidfdinfo PROC_PIDFDVNODEPATHINFO failed", err)
+		return "", Error("proc_pidfdinfo PROC_PIDFDVNODEPATHINFO", err)
 	}
 	return C.GoString(&fdi.pvip.vip_path[0]), nil
 }

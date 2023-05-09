@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"unsafe"
 )
 
@@ -20,8 +21,8 @@ type (
 )
 
 const (
-	// TimeFormat used for formatting timestamps.
-	TimeFormat = "2006-01-02T15:04:05.000Z07:00"
+	// RFC3339Milli used for formatting timestamps.
+	RFC3339Milli = "2006-01-02T15:04:05.000Z07:00"
 )
 
 var (
@@ -116,7 +117,10 @@ func Spawn(ctx context.Context, cmdline []string) (*bufio.Scanner, error) {
 		return nil, Error("Start", err)
 	}
 
-	LogInfo("spawn", fmt.Errorf("command=%q pid=%d", cmd.String(), cmd.Process.Pid))
+	Error("spawn", nil, map[string]string{
+		"command": cmd.String(),
+		"pid":     strconv.Itoa(cmd.Process.Pid),
+	}).Info()
 
 	go wait(cmd)
 
@@ -133,15 +137,12 @@ func wait(cmd *exec.Cmd) {
 			stderr = string(err.Stderr)
 		}
 	}
-	// log.DefaultLogger.Info(
-	LogInfo("exit", fmt.Errorf(
-		"%s pid=%d err=%q rc=%d systime=%v usrtime=%v stderr=%s",
-		cmd.Args[0],
-		cmd.Process.Pid,
-		err,
-		state.ExitCode(),
-		state.SystemTime(),
-		state.UserTime(),
-		stderr,
-	))
+	Error("wait", err, map[string]string{
+		"command":  cmd.Args[0],
+		"pid":      strconv.Itoa(cmd.Process.Pid),
+		"rc":       strconv.Itoa(state.ExitCode()),
+		"systime":  state.SystemTime().String(),
+		"usertime": state.UserTime().String(),
+		"stderr":   stderr,
+	}).Info()
 }

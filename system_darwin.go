@@ -88,7 +88,7 @@ import "C"
 // 			buf := make([]byte, 4096)
 // 			n := runtime.Stack(buf, false)
 // 			buf = buf[:n]
-// 			LogError(fmt.Errorf("osEnvironment panicked, %v\n%s", r, buf))
+// 			Error(fmt.Errorf("osEnvironment() panic: %v\n%s", r, buf)).Err()
 // 		}
 // 	}()
 

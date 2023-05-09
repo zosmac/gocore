@@ -104,12 +104,12 @@ func init() {
 // parse inspects the command line.
 func parse(args []string) error {
 	if err := Flags.Parse(args); err != nil {
-		return Error("parse arguments", err)
+		return Error("argument parser", err)
 	}
 
 	if Flags.NArg() > Flags.argsMax { // too many arguments?
 		args := strings.Join(Flags.Args()[Flags.NArg()-Flags.argsMax-1:], " ")
-		return Error("unexpected arguments", fmt.Errorf(args))
+		return Error("argument parser", fmt.Errorf(args))
 	}
 
 	return nil
@@ -118,11 +118,11 @@ func parse(args []string) error {
 // usage formats the flags Usage message for gomon.
 func usage() {
 	if !IsTerminal(os.Stderr) && logBuf.Len() > 0 { // if called by go's flag package parser, may have error text
-		LogError("terminal", errors.New(strings.TrimSpace(logBuf.String()))) // in that case report it
+		Error("terminal", errors.New(strings.TrimSpace(logBuf.String()))).Err() // in that case report it
 		return
 	}
 
-	logBuf.WriteString("NAME:\n  " + filepath.Base(executable))
+	logBuf.WriteString("NAME:\n  " + filepath.Base(Executable))
 	logBuf.WriteString("\n\nDESCRIPTION:\n  " + Flags.CommandDescription)
 
 	var names []string
@@ -134,7 +134,7 @@ func usage() {
 	for _, name := range names {
 		flags = append(flags, flagSyntax[name])
 	}
-	logBuf.WriteString("\n\nUSAGE:\n  " + filepath.Base(executable) + " [-help] " + strings.Join(flags, " "))
+	logBuf.WriteString("\n\nUSAGE:\n  " + filepath.Base(Executable) + " [-help] " + strings.Join(flags, " "))
 
 	if len(Flags.ArgumentDescriptions) > 0 {
 		for _, args := range Flags.ArgumentDescriptions {
@@ -144,7 +144,7 @@ func usage() {
 	logBuf.WriteString(`
 
 VERSION:
-  ` + module + " " + vmmp + `
+  ` + module + " " + Version + `
 
 OPTIONS:
   -help

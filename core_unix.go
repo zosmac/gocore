@@ -6,9 +6,9 @@ package gocore
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 )
 
@@ -27,19 +27,17 @@ func signalContext() (context.Context, context.CancelFunc) {
 // seteuid current process to file owner.
 func Seteuid() {
 	err := syscall.Seteuid(euid)
-	LogInfo("Seteuid", fmt.Errorf("uid: %d, euid: %d err: %v",
-		os.Getuid(),
-		os.Geteuid(),
-		err,
-	))
+	Error("Seteuid", err, map[string]string{
+		"uid":  strconv.Itoa(os.Getuid()),
+		"euid": strconv.Itoa(os.Geteuid()),
+	}).Info()
 }
 
 // setuid current process to user.
 func Setuid() {
 	err := syscall.Seteuid(os.Getuid())
-	LogInfo("Setuid", fmt.Errorf("uid: %d, euid: %d err: %v",
-		os.Getuid(),
-		os.Geteuid(),
-		err,
-	))
+	Error("Setuid", err, map[string]string{
+		"uid":  strconv.Itoa(os.Getuid()),
+		"euid": strconv.Itoa(os.Geteuid()),
+	}).Info()
 }

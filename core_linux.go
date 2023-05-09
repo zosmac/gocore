@@ -17,7 +17,7 @@ var (
 	Boottime = func() time.Time {
 		f, err := os.Open("/proc/stat")
 		if err != nil {
-			LogError("/proc/stat open", err)
+			Error("/proc/stat open", err).Err()
 			return time.Time{}
 		}
 		defer f.Close()
@@ -29,14 +29,14 @@ var (
 			case "btime":
 				sec, err := strconv.Atoi(v)
 				if err != nil {
-					LogError("/proc/stat btime", err)
+					Error("/proc/stat btime", err).Err()
 					return time.Time{}
 				}
 				return time.Unix(int64(sec), 0)
 			}
 		}
 
-		LogError("/proc/stat btime", sc.Err())
+		Error("/proc/stat btime", sc.Err()).Err()
 		return time.Time{}
 	}()
 )

@@ -20,28 +20,28 @@ var (
 	Host, _ = os.Hostname()
 
 	// executable identifies the full command path.
-	executable, _ = os.Executable()
+	Executable, _ = os.Executable()
 
 	// module identifies the module's package path.
 	module string
 
-	// vmmp: version.major.minor-timestamp-commithash
-	vmmp string
+	// Version of module: version.major.minor-timestamp-commithash
+	Version string
 
 	// buildDate sets the build date for the command.
 	buildDate = func() string {
-		info, _ := os.Stat(executable)
+		info, _ := os.Stat(Executable)
 		return info.ModTime().UTC().Format("2006-01-02T15:04:05Z")
 	}()
 )
 
 // Main drives the show.
 func Main(main func(context.Context) error) {
-	module, vmmp = build()
+	module, Version = build()
 
 	if err := parse(os.Args[1:]); err != nil {
 		if !errors.Is(err, flag.ErrHelp) {
-			LogError("", err)
+			Error("", err).Err()
 		}
 		return
 	}
@@ -59,7 +59,7 @@ func Main(main func(context.Context) error) {
 
 	go func() {
 		if err := main(ctx); err != nil {
-			LogError("", err)
+			Error("", err).Err()
 		}
 		stop() // on exit, inform service routines to cleanup
 	}()
@@ -100,5 +100,5 @@ Build Date - %s
 Compiler   - %s %s_%s
 Copyright © 2021-2023 The Gomon Project.
 `,
-		executable, module, vmmp, buildDate, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		Executable, module, Version, buildDate, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }

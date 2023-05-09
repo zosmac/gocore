@@ -7,147 +7,170 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 )
 
 type (
-	// Err custom logging error type
-	Err struct {
-		user   string
-		file   string
-		line   int
-		detail string
-		err    error
+	// LogLevel indexes the literal log levels.
+	LogLevel int
+
+	// LogMessage is custom logging error type.
+	LogMessage struct {
+		Source string
+		E      error
+		File   string
+		Line   int
+		Detail map[string]string
 	}
 )
 
 const (
-	levelTrace = iota - 2
-	levelDebug
-	levelInfo // default
-	levelWarn
-	levelError
+	// enum of logging levels corresponding to log levels.
+	LevelTrace LogLevel = iota - 2
+	LevelDebug
+	LevelInfo // default
+	LevelWarn
+	LevelError
+	LevelFatal
 )
 
 var (
-	// logLeveel maps parsed log levels to level index.
-	logLevel = func() int {
+	// logLevels map logging level enums to log levels.
+	logLevels = map[LogLevel]string{
+		LevelTrace: "TRACE",
+		LevelDebug: "DEBUG",
+		LevelInfo:  "INFO",
+		LevelWarn:  "WARN",
+		LevelError: "ERROR",
+		LevelFatal: "FATAL",
+	}
+
+	// loggingLevel maps requested LOG_LEVEL to index.
+	LoggingLevel = func() LogLevel {
 		switch strings.ToUpper(os.Getenv("LOG_LEVEL")) {
 		case "TRACE":
-			return levelTrace
+			return LevelTrace
 		case "DEBUG":
-			return levelDebug
+			return LevelDebug
 		case "WARN":
-			return levelWarn
+			return LevelWarn
 		case "ERROR":
-			return levelError
+			return LevelError
+		case "FATAL":
+			return LevelFatal
 		}
-		return levelInfo
+		return LevelInfo
 	}()
+
+	// Log is the default log message formatter and writer.
+	Log = func(msg LogMessage, level LogLevel) {
+		if level >= LoggingLevel {
+			log.Printf("%s %-5s %s", time.Now().Format(RFC3339Milli), logLevels[level], msg.Error())
+		}
+	}
 )
-
-// Error method to comply with error interface
-func (err *Err) Error() string {
-	return fmt.Sprintf("%s [%s %s %s] [%s] [%s:%d] %s%s",
-		os.Args,
-		executable,
-		vmmp,
-		buildDate,
-		err.user,
-		err.file,
-		err.line,
-		err.detail,
-		err.err.Error(),
-	)
-}
-
-// Unwrap method to comply with error interface
-func (err *Err) Unwrap() error {
-	return err.err
-}
-
-// Error formats an error with function name and error message, with code location
-// details for initial error, preserving the initial logged error for percolation.
-func Error(name string, err error) *Err {
-	return logMessage(2, name, err)
-}
 
 // Unsupported reports that a specific OS does not support a function
 func Unsupported() error {
-	return Error("Unsupported", fmt.Errorf(runtime.GOOS))
+	return Error("Unsupported", errors.New(runtime.GOOS))
 }
 
-// logWrite writes a log message to the log destination.
-func logWrite(level string, name string, err error) {
-	if err := logMessage(3, name, err); err != nil {
-		log.Printf("%s %-5s %s", time.Now().Format(TimeFormat), level, err.Error())
+// Error method to comply with error interface.
+func (msg LogMessage) Error() string {
+	var detail string
+	var keys []string
+	for key := range msg.Detail {
+		keys = append(keys, key)
 	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		val := msg.Detail[key]
+		if val == "" {
+			continue
+		}
+		if strings.ContainsAny(val, "\t\n\v\f\r ") { // quote value with embedded whitespace
+			val = "\"" + val + "\""
+		}
+		detail += " " + key + "=" + val
+	}
+	var e string
+	if msg.E != nil {
+		e = "err=\"" + msg.E.Error() + "\" "
+	}
+	return fmt.Sprintf("[%s:%d] %ssource=%q%s",
+		msg.File,
+		msg.Line,
+		e,
+		msg.Source,
+		detail,
+	)
 }
 
-// logMessage formats a log message with where, what, how, which, who, why of an error.
-func logMessage(depth int, name string, err error) *Err {
-	if err == nil {
-		return nil
-	}
-	e := &Err{}
+// Unwrap method to comply with error interface.
+func (msg LogMessage) Unwrap() error {
+	return msg.E
+}
+
+// Error records the function source, error message, code location, and any
+// details of initial error, preserving the initial error for percolation.
+func Error(source string, err error, details ...map[string]string) LogMessage {
+	e := LogMessage{}
 	if errors.As(err, &e) {
 		return e // percolate original Err
 	}
 
-	_, file, line, _ := runtime.Caller(depth)
+	_, file, line, _ := runtime.Caller(2)
+	file = filepath.Join(filepath.Base(filepath.Dir(file)), filepath.Base(file))
 
-	var detail string
-	if name != "" {
-		detail += name + ": "
-	}
+	detail := map[string]string{}
 	var errno syscall.Errno
 	if errors.As(err, &errno) {
-		detail += fmt.Sprintf("errno %d: ", errno)
+		detail["errno"] = strconv.Itoa(int(errno))
 	}
 
-	return &Err{
-		user:   Username(os.Getuid()),
-		file:   file,
-		line:   line,
-		detail: detail,
-		err:    err,
+	// if for some reason, multiple detail maps, merge into first one.
+	for _, det := range details {
+		for key, val := range det {
+			detail[key] = val
+		}
+	}
+
+	return LogMessage{
+		Source: source,
+		E:      err,
+		File:   file,
+		Line:   line,
+		Detail: detail,
 	}
 }
 
-// LogTrace log trace message.
-func LogTrace(name string, err error) {
-	if logLevel <= levelTrace {
-		logWrite("TRACE", name, err)
-	}
+// Trace log trace message.
+func (msg LogMessage) Trace() {
+	Log(msg, LevelTrace)
 }
 
-// LogDebug log debug message.
-func LogDebug(name string, err error) {
-	if logLevel <= levelDebug {
-		logWrite("DEBUG", name, err)
-	}
+// Debug log debug message.
+func (msg LogMessage) Debug() {
+	Log(msg, LevelDebug)
 }
 
-// LogInfo log info message (default logging level).
-func LogInfo(name string, err error) {
-	if logLevel <= levelInfo {
-		logWrite("INFO", name, err)
-	}
+// Info log info message (default logging level).
+func (msg LogMessage) Info() {
+	Log(msg, LevelInfo)
 }
 
-// LogWarn log warning message, setting exit code to WARN.
-func LogWarn(name string, err error) {
-	if logLevel <= levelWarn {
-		logWrite("WARN", name, err)
-	}
+// Warn log warning message.
+func (msg LogMessage) Warn() {
+	Log(msg, LevelWarn)
 }
 
-// LogError log error message, setting exit code to ERROR.
-func LogError(name string, err error) {
-	if logLevel <= levelError {
-		logWrite("ERROR", name, err)
-	}
+// Error log error message.
+func (msg LogMessage) Err() {
+	Log(msg, LevelError)
 }
