@@ -21,7 +21,7 @@ var (
 func signalContext() (context.Context, context.CancelFunc) {
 	// ignore these signals to enable to continue running
 	signal.Ignore(syscall.SIGWINCH, syscall.SIGHUP, syscall.SIGTTIN, syscall.SIGTTOU)
-	return signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	return signal.NotifyContext(context.Background(), os.Interrupt, os.Kill, syscall.SIGTERM)
 }
 
 // seteuid current process to file owner.

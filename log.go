@@ -71,6 +71,9 @@ var (
 	// Log is the default log message formatter and writer.
 	Log = func(msg LogMessage, level LogLevel) {
 		if level >= LoggingLevel {
+			if msg.E == nil && level > LevelInfo {
+				level = LevelInfo
+			}
 			log.Printf("%s %-5s %s", time.Now().Format(RFC3339Milli), logLevels[level], msg.Error())
 		}
 	}
@@ -125,7 +128,7 @@ func Error(source string, err error, details ...map[string]string) LogMessage {
 		return e // percolate original Err
 	}
 
-	_, file, line, _ := runtime.Caller(2)
+	_, file, line, _ := runtime.Caller(1)
 	file = filepath.Join(filepath.Base(filepath.Dir(file)), filepath.Base(file))
 
 	detail := map[string]string{}

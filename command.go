@@ -59,7 +59,7 @@ func Main(main func(context.Context) error) {
 
 	go func() {
 		if err := main(ctx); err != nil {
-			Error("", err).Err()
+			Error("exit maini", err).Err()
 		}
 		stop() // on exit, inform service routines to cleanup
 	}()

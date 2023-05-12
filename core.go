@@ -111,10 +111,14 @@ func Spawn(ctx context.Context, cmdline []string) (*bufio.Scanner, error) {
 	cmd.ExtraFiles = extraFiles()
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, Error("StdoutPipe", err)
+		return nil, Error("StdoutPipe", err, map[string]string{
+			"command": cmd.String(),
+		})
 	}
 	if err := cmd.Start(); err != nil {
-		return nil, Error("Start", err)
+		return nil, Error("Start", err, map[string]string{
+			"command": cmd.String(),
+		})
 	}
 
 	Error("spawn", nil, map[string]string{
