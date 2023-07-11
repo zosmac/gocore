@@ -44,7 +44,7 @@ func (tr Tree[N, C, V]) Traverse(depth int, tbl Table[N, V], order Order[N, C, V
 	}
 }
 
-// FlatTree walks the tree to build an ordered slice of the nodes.
+// Flatten walks the tree to build an ordered slice of the nodes.
 func (tr Tree[N, C, V]) Flatten(tbl Table[N, V], order Order[N, C, V]) []N {
 	var flat []N
 	for _, node := range tr.order(tbl, order) {
