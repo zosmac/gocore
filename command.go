@@ -2,6 +2,8 @@
 
 package gocore
 
+import "C"
+
 import (
 	"context"
 	"errors"
@@ -13,11 +15,42 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"unsafe"
+
+	"golang.org/x/sys/unix"
+)
+
+type (
+	// Utsname contains Go format system uname
+	Utsname struct {
+		Sysname  string
+		Nodename string
+		Release  string
+		Version  string
+		Machine  string
+	}
 )
 
 var (
 	// Host identifies the local host.
 	Host, _ = os.Hostname()
+
+	// Platform identifies the local OS.
+	Platform = runtime.GOOS + "_" + runtime.GOARCH
+
+	Uname = func() Utsname {
+		var utsname unix.Utsname
+		if err := unix.Uname(&utsname); err == nil {
+			return Utsname{
+				Sysname:  C.GoString((*C.char)(unsafe.Pointer(&utsname.Sysname[0]))),
+				Nodename: C.GoString((*C.char)(unsafe.Pointer(&utsname.Nodename[0]))),
+				Release:  C.GoString((*C.char)(unsafe.Pointer(&utsname.Release[0]))),
+				Version:  C.GoString((*C.char)(unsafe.Pointer(&utsname.Version[0]))),
+				Machine:  C.GoString((*C.char)(unsafe.Pointer(&utsname.Machine[0]))),
+			}
+		}
+		return Utsname{}
+	}()
 
 	// executable identifies the full command path.
 	Executable, _ = os.Executable()
