@@ -55,7 +55,7 @@ func Format(name, tag string, val reflect.Value, fn Formatter) (ms []any) {
 		}
 	case reflect.Slice:
 		name += val.Type().Name()
-		for i := 0; i < val.Len(); i++ {
+		for i := range val.Len() {
 			ms = append(ms, Format(name+"_"+strconv.Itoa(i), tag, val.Index(i), fn)...)
 		}
 		if val.IsNil() { // documentatation
@@ -90,7 +90,7 @@ func Format(name, tag string, val reflect.Value, fn Formatter) (ms []any) {
 		if name != "" && name[len(name)-1] != '_' {
 			name += "_"
 		}
-		for i := 0; i < t.NumField(); i++ {
+		for i := range t.NumField() {
 			f := t.Field(i)
 			if tag, ok := f.Tag.Lookup("gomon"); ok {
 				var n string
