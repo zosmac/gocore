@@ -109,7 +109,7 @@ func parse(args []string) error {
 
 	if Flags.NArg() > Flags.argsMax { // too many arguments?
 		args := strings.Join(Flags.Args()[Flags.NArg()-Flags.argsMax-1:], " ")
-		return Error("argument parser", fmt.Errorf(args))
+		return Error("argument parser", fmt.Errorf("%s", args))
 	}
 
 	return nil
