@@ -140,7 +140,7 @@ func modinfo(dir moddir) (modval, error) {
 			Mode: packages.NeedName | packages.NeedModule,
 			Dir:  string(dir),
 		})
-	if err != nil {
+	if err != nil || len(pkgs) == 0 || pkgs[0].Module == nil {
 		return modval{}, nil
 	}
 	return modval{

@@ -3,61 +3,89 @@
 package gocore
 
 import (
+	"cmp"
 	"sort"
 )
 
 type (
 	// Node is the comparable type for each node of Tree.
-	Node interface{ ~int | ~string }
+	Node = cmp.Ordered
 
-	// Comparator is a value returned by the Order function of a Table for sorting.
-	Comparator interface{ ~int | ~string }
-
-	// Table refers to the data corresponding the nodes of a tree.
-	Table[N Node, V any] map[N]V
+	// Comparator is returned by the Order function for each of the top Nodes of a Tree for sorting.
+	Comparator = cmp.Ordered
 
 	// Tree defines a hierarchy of Nodes of comparable type.
-	Tree[N Node, C Comparator, V any] map[N]Tree[N, C, V]
+	Tree[N Node] map[N]Tree[N]
 
-	// Order distinguishes similar Node values for sorting.
-	Order[N Node, C Comparator, V any] func(N, Table[N, V]) C
+	// Table provides an optional dictionary of values for the Nodes. If used, insert new Nodes here first to ensure uniqueness in Tree.
+	Table[N Node, V any] map[N]V
+
+	// Order provides a unique Comparator for each Node/Value for sorting.
+	Order[N Node, V any, C Comparator] func(N, V) C
+
+	Meta[N Node, V any, C Comparator] struct {
+		Tree[N]
+		Table[N, V]
+		Order[N, V, C]
+	}
 
 	// Display shows the value of a Node at particular depth in Tree.
-	Display[N Node, V any] func(int, N, Table[N, V])
+	Display[N Node, V any] func(int, N, V)
 )
 
-// Add inserts a node into a tree.
-func (tr Tree[N, C, V]) Add(nodes ...N) {
+// Add adds new Nodes as a branch to the Tree.
+func (tr Tree[N]) Add(nodes ...N) {
 	if len(nodes) > 0 {
 		if _, ok := tr[nodes[0]]; !ok {
-			tr[nodes[0]] = Tree[N, C, V]{}
+			tr[nodes[0]] = Tree[N]{}
 		}
 		tr[nodes[0]].Add(nodes[1:]...)
 	}
 }
 
 // Traverse walks the tree and invokes function fn for each node.
-func (tr Tree[N, C, V]) Traverse(depth int, tbl Table[N, V], order Order[N, C, V], display Display[N, V]) {
-	for _, node := range tr.order(tbl, order) {
-		display(depth, node, tbl)
-		tr[node].Traverse(depth+1, tbl, order, display)
+func (meta Meta[N, V, C]) Traverse(depth int, display Display[N, V]) {
+	for _, node := range meta.order() {
+		display(depth, node, meta.Table[node])
+		Meta[N, V, C]{Tree: meta.Tree[node], Table: meta.Table, Order: meta.Order}.Traverse(depth+1, display)
 	}
 }
 
+// All walks the tree and returns an ordered map of the nodes.
+func (meta Meta[N, V, C]) All() func(yield func(int, N) bool) {
+	return func(yield func(int, N) bool) {
+		meta.push(0, yield)
+	}
+}
+
+// push pushes all elements to the yield function.
+func (meta Meta[N, V, C]) push(depth int, yield func(int, N) bool) bool {
+	for _, node := range meta.order() {
+		if !yield(depth, node) {
+			return false
+		}
+		if !(Meta[N, V, C]{Tree: meta.Tree[node], Table: meta.Table, Order: meta.Order}).push(depth+1, yield) {
+			return false
+		}
+	}
+	return true
+}
+
 // Flatten walks the tree to build an ordered slice of the nodes.
-func (tr Tree[N, C, V]) Flatten(tbl Table[N, V], order Order[N, C, V]) []N {
+func (meta Meta[N, V, C]) Flatten() []N {
 	var flat []N
-	for _, node := range tr.order(tbl, order) {
-		flat = append(append(flat, node), tr[node].Flatten(tbl, order)...)
+	for _, node := range meta.order() {
+		flat = append(append(flat, node),
+			Meta[N, V, C]{Tree: meta.Tree[node], Table: meta.Table, Order: meta.Order}.Flatten()...)
 	}
 	return flat
 }
 
 // FindTree finds the subtree anchored by a specific node.
-func (tr Tree[N, C, V]) FindTree(node N) Tree[N, C, V] {
+func (tr Tree[N]) FindTree(node N) Tree[N] {
 	for n, tr := range tr {
 		if n == node {
-			return Tree[N, C, V]{node: tr}
+			return Tree[N]{node: tr}
 		}
 		if tr = tr.FindTree(node); tr != nil {
 			return tr
@@ -67,14 +95,14 @@ func (tr Tree[N, C, V]) FindTree(node N) Tree[N, C, V] {
 }
 
 // order sorts the top nodes of a tree and returns as an ordered slice.
-func (tr Tree[N, C, V]) order(tbl Table[N, V], fn Order[N, C, V]) []N {
+func (meta Meta[N, V, C]) order() []N {
 	var nodes []N
-	for node := range tr {
+	for node := range meta.Tree {
 		nodes = append(nodes, node)
 	}
 	sort.Slice(nodes, func(i, j int) bool {
-		nodei := fn(nodes[i], tbl)
-		nodej := fn(nodes[j], tbl)
+		nodei := meta.Order(nodes[i], meta.Table[nodes[i]])
+		nodej := meta.Order(nodes[j], meta.Table[nodes[j]])
 		return nodei < nodej ||
 			nodei == nodej && nodes[i] < nodes[j]
 	})
