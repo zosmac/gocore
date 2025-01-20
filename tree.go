@@ -4,6 +4,7 @@ package gocore
 
 import (
 	"cmp"
+	"slices"
 	"sort"
 )
 
@@ -43,14 +44,6 @@ func (tr Tree[N]) Add(nodes ...N) {
 	}
 }
 
-// Traverse walks the tree and invokes function fn for each node.
-func (meta Meta[N, V, C]) Traverse(depth int, display Display[N, V]) {
-	for _, node := range meta.order() {
-		display(depth, node, meta.Table[node])
-		Meta[N, V, C]{Tree: meta.Tree[node], Table: meta.Table, Order: meta.Order}.Traverse(depth+1, display)
-	}
-}
-
 // All walks the tree and returns an ordered map of the nodes.
 func (meta Meta[N, V, C]) All() func(yield func(int, N) bool) {
 	return func(yield func(int, N) bool) {
@@ -69,16 +62,6 @@ func (meta Meta[N, V, C]) push(depth int, yield func(int, N) bool) bool {
 		}
 	}
 	return true
-}
-
-// Flatten walks the tree to build an ordered slice of the nodes.
-func (meta Meta[N, V, C]) Flatten() []N {
-	var flat []N
-	for _, node := range meta.order() {
-		flat = append(append(flat, node),
-			Meta[N, V, C]{Tree: meta.Tree[node], Table: meta.Table, Order: meta.Order}.Flatten()...)
-	}
-	return flat
 }
 
 // FindTree finds the subtree anchored by a specific node.
@@ -100,11 +83,15 @@ func (meta Meta[N, V, C]) order() []N {
 	for node := range meta.Tree {
 		nodes = append(nodes, node)
 	}
-	sort.Slice(nodes, func(i, j int) bool {
-		nodei := meta.Order(nodes[i], meta.Table[nodes[i]])
-		nodej := meta.Order(nodes[j], meta.Table[nodes[j]])
-		return nodei < nodej ||
-			nodei == nodej && nodes[i] < nodes[j]
-	})
+	if meta.Order == nil {
+		slices.Sort(nodes)
+	} else {
+		sort.Slice(nodes, func(i, j int) bool {
+			nodei := meta.Order(nodes[i], meta.Table[nodes[i]])
+			nodej := meta.Order(nodes[j], meta.Table[nodes[j]])
+			return nodei < nodej ||
+				nodei == nodej && nodes[i] < nodes[j]
+		})
+	}
 	return nodes
 }
