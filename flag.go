@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -129,7 +129,7 @@ func usage() {
 	for name := range flagSyntax {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	var flags []string
 	for _, name := range names {
 		flags = append(flags, flagSyntax[name])

@@ -5,7 +5,6 @@ package gocore
 import (
 	"cmp"
 	"slices"
-	"sort"
 )
 
 type (
@@ -29,9 +28,6 @@ type (
 		Table[N, V]
 		Order[N, V, C]
 	}
-
-	// Display shows the value of a Node at particular depth in Tree.
-	Display[N Node, V any] func(int, N, V)
 )
 
 // Add adds new Nodes as a branch to the Tree.
@@ -79,18 +75,21 @@ func (tr Tree[N]) FindTree(node N) Tree[N] {
 
 // order sorts the top nodes of a tree and returns as an ordered slice.
 func (meta Meta[N, V, C]) order() []N {
-	var nodes []N
+	nodes := make([]N, 0, len(meta.Tree))
 	for node := range meta.Tree {
 		nodes = append(nodes, node)
 	}
 	if meta.Order == nil {
 		slices.Sort(nodes)
 	} else {
-		sort.Slice(nodes, func(i, j int) bool {
-			nodei := meta.Order(nodes[i], meta.Table[nodes[i]])
-			nodej := meta.Order(nodes[j], meta.Table[nodes[j]])
-			return nodei < nodej ||
-				nodei == nodej && nodes[i] < nodes[j]
+		slices.SortFunc(nodes, func(a, b N) int {
+			return cmp.Or(
+				cmp.Compare(
+					meta.Order(a, meta.Table[a]),
+					meta.Order(b, meta.Table[b]),
+				),
+				cmp.Compare(a, b),
+			)
 		})
 	}
 	return nodes
