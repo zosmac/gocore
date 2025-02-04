@@ -4,6 +4,7 @@ package gocore
 
 import (
 	"cmp"
+	"iter"
 	"slices"
 )
 
@@ -11,23 +12,11 @@ type (
 	// Node is the comparable type for each node of Tree.
 	Node = cmp.Ordered
 
-	// Comparator is returned by the Order function for each of the top Nodes of a Tree for sorting.
-	Comparator = cmp.Ordered
-
 	// Tree defines a hierarchy of Nodes of comparable type.
 	Tree[N Node] map[N]Tree[N]
 
 	// Table provides an optional dictionary of values for the Nodes. If used, insert new Nodes here first to ensure uniqueness in Tree.
 	Table[N Node, V any] map[N]V
-
-	// Order provides a unique Comparator for each Node/Value for sorting.
-	Order[N Node, V any, C Comparator] func(N, V) C
-
-	Meta[N Node, V any, C Comparator] struct {
-		Tree[N]
-		Table[N, V]
-		Order[N, V, C]
-	}
 )
 
 // Add adds new Nodes as a branch to the Tree.
@@ -40,24 +29,74 @@ func (tr Tree[N]) Add(nodes ...N) {
 	}
 }
 
-// All walks the tree and returns an ordered map of the nodes.
-func (meta Meta[N, V, C]) All() func(yield func(int, N) bool) {
+// All walks the tree, returning a sequence of each node and its depth in the tree and descending through its subnodes.
+func (tr Tree[N]) All() iter.Seq2[int, N] {
 	return func(yield func(int, N) bool) {
-		meta.push(0, yield)
+		tr.push(0, yield)
 	}
 }
 
 // push pushes all elements to the yield function.
-func (meta Meta[N, V, C]) push(depth int, yield func(int, N) bool) bool {
-	for _, node := range meta.order() {
+func (tr Tree[N]) push(depth int, yield func(int, N) bool) bool {
+	for node, tr := range tr {
 		if !yield(depth, node) {
 			return false
 		}
-		if !(Meta[N, V, C]{Tree: meta.Tree[node], Table: meta.Table, Order: meta.Order}).push(depth+1, yield) {
+		if !tr.push(depth+1, yield) {
 			return false
 		}
 	}
 	return true
+}
+
+// SortedFunc walks the tree, returning an ordered sequence of each node's value and depth in the tree and descending through its subnodes, ordered with a comparison function.
+func (tr Tree[N]) SortedFunc(cmp func(a, b N) int) iter.Seq2[int, N] {
+	return func(yield func(int, N) bool) {
+		tr.sort(0, cmp, yield)
+	}
+}
+
+// sort walks the tree and orders each node's subtree.
+func (tr Tree[N]) sort(depth int, cmp func(a, b N) int, yield func(int, N) bool) bool {
+	nodes := []N{}
+	for node := range tr {
+		nodes = append(nodes, node)
+	}
+	slices.SortFunc(nodes, cmp)
+	for _, node := range nodes {
+		if !yield(depth, node) {
+			return false
+		}
+		if !tr[node].sort(depth+1, cmp, yield) {
+			return false
+		}
+	}
+	return true
+}
+
+// DepthTree enables sort of deepest process trees first.
+func (tr Tree[N]) DepthTree() int {
+	depth := 1
+	for _, tr := range tr {
+		depth = max(depth, tr.DepthTree()+1)
+	}
+	return depth
+}
+
+func (tr Tree[N]) Ancestors(node N) []N {
+	nodes := make([]N, 10)
+	for depth, n := range tr.All() {
+		if depth >= cap(nodes) {
+			ns := make([]N, 2*cap(nodes))
+			copy(ns, nodes)
+			nodes = ns
+		}
+		nodes[depth] = n
+		if node == n {
+			return nodes[:depth]
+		}
+	}
+	return nil
 }
 
 // FindTree finds the subtree anchored by a specific node.
@@ -73,24 +112,19 @@ func (tr Tree[N]) FindTree(node N) Tree[N] {
 	return nil
 }
 
-// order sorts the top nodes of a tree and returns as an ordered slice.
-func (meta Meta[N, V, C]) order() []N {
-	nodes := make([]N, 0, len(meta.Tree))
-	for node := range meta.Tree {
-		nodes = append(nodes, node)
+func (tr Tree[N]) Family(node N) Tree[N] {
+	if _, ok := tr[node]; ok {
+		return tr
 	}
-	if meta.Order == nil {
-		slices.Sort(nodes)
-	} else {
-		slices.SortFunc(nodes, func(a, b N) int {
-			return cmp.Or(
-				cmp.Compare(
-					meta.Order(a, meta.Table[a]),
-					meta.Order(b, meta.Table[b]),
-				),
-				cmp.Compare(a, b),
-			)
-		})
+	anc := tr.Ancestors(node) // ancestors
+	if len(anc) == 0 {
+		return Tree[N]{} // not found
 	}
-	return nodes
+	tr = tr.FindTree(node) // self and descendants
+	parent := anc[len(anc)-1]
+	fam := Tree[N]{}
+	fam.Add(anc...)
+	tb := fam.FindTree(parent)
+	tb[parent][node] = tr[node]
+	return fam
 }
