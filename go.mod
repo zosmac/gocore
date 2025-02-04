@@ -1,10 +1,10 @@
 module github.com/zosmac/gocore
 
-go 1.23.5
+go 1.23.6
 
 require (
 	github.com/StackExchange/wmi v1.2.1
-	golang.org/x/sys v0.29.0
+	golang.org/x/sys v0.30.0
 	golang.org/x/tools v0.29.0
 )
 
