@@ -101,10 +101,10 @@ func (tr Tree[N]) Ancestors(node N) []N {
 
 // FindTree finds the subtree anchored by a specific node.
 func (tr Tree[N]) FindTree(node N) Tree[N] {
-	for n, tr := range tr {
-		if n == node {
-			return Tree[N]{node: tr}
-		}
+	if _, ok := tr[node]; ok {
+		return tr
+	}
+	for _, tr := range tr {
 		if tr = tr.FindTree(node); tr != nil {
 			return tr
 		}
