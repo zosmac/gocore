@@ -4,6 +4,7 @@ package gocore
 
 import (
 	"bytes"
+	"cmp"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 )
@@ -125,14 +125,9 @@ func usage() {
 	logBuf.WriteString("NAME:\n  " + filepath.Base(Executable))
 	logBuf.WriteString("\n\nDESCRIPTION:\n  " + Flags.CommandDescription)
 
-	var names []string
-	for name := range flagSyntax {
-		names = append(names, name)
-	}
-	slices.Sort(names)
 	var flags []string
-	for _, name := range names {
-		flags = append(flags, flagSyntax[name])
+	for _, flag := range Ordered(flagSyntax, cmp.Compare) {
+		flags = append(flags, flag)
 	}
 	logBuf.WriteString("\n\nUSAGE:\n  " + filepath.Base(Executable) + " [-help] " + strings.Join(flags, " "))
 
