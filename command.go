@@ -2,8 +2,6 @@
 
 package gocore
 
-import "C"
-
 import (
 	"context"
 	"errors"
@@ -15,55 +13,21 @@ import (
 	"runtime"
 	"strings"
 	"time"
-	"unsafe"
-
-	"golang.org/x/sys/unix"
-)
-
-type (
-	// Utsname contains Go format system uname
-	Utsname struct {
-		Sysname  string
-		Nodename string
-		Release  string
-		Version  string
-		Machine  string
-	}
 )
 
 var (
-	// Host identifies the local host.
-	Host, _ = os.Hostname()
-
-	// Platform identifies the local OS.
-	Platform = runtime.GOOS + "_" + runtime.GOARCH
-
-	Uname = func() Utsname {
-		var utsname unix.Utsname
-		if err := unix.Uname(&utsname); err == nil {
-			return Utsname{
-				Sysname:  C.GoString((*C.char)(unsafe.Pointer(&utsname.Sysname[0]))),
-				Nodename: C.GoString((*C.char)(unsafe.Pointer(&utsname.Nodename[0]))),
-				Release:  C.GoString((*C.char)(unsafe.Pointer(&utsname.Release[0]))),
-				Version:  C.GoString((*C.char)(unsafe.Pointer(&utsname.Version[0]))),
-				Machine:  C.GoString((*C.char)(unsafe.Pointer(&utsname.Machine[0]))),
-			}
-		}
-		return Utsname{}
-	}()
-
-	// executable identifies the full command path.
-	Executable, _ = os.Executable()
-
 	// module identifies the module's package path.
 	module string
+
+	// executable identifies the full command path.
+	executable, _ = os.Executable()
 
 	// Version of module: version.major.minor-timestamp-commithash
 	Version string
 
 	// buildDate sets the build date for the command.
 	buildDate = func() string {
-		info, _ := os.Stat(Executable)
+		info, _ := os.Stat(executable)
 		return info.ModTime().UTC().Format("2006-01-02T15:04:05Z")
 	}()
 )
@@ -92,7 +56,7 @@ func Main(main func(context.Context) error) {
 
 	go func() {
 		if err := main(ctx); err != nil {
-			Error("exit maini", err).Err()
+			Error("exit main", err).Err()
 		}
 		stop() // on exit, inform service routines to cleanup
 	}()
@@ -133,5 +97,5 @@ Build Date - %s
 Compiler   - %s %s_%s
 Copyright © 2021-2023 The Gomon Project.
 `,
-		Executable, module, Version, buildDate, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		executable, module, Version, buildDate, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }

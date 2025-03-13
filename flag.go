@@ -122,14 +122,14 @@ func usage() {
 		return
 	}
 
-	logBuf.WriteString("NAME:\n  " + filepath.Base(Executable))
+	logBuf.WriteString("NAME:\n  " + filepath.Base(executable))
 	logBuf.WriteString("\n\nDESCRIPTION:\n  " + Flags.CommandDescription)
 
 	var flags []string
 	for _, flag := range Ordered(flagSyntax, cmp.Compare) {
 		flags = append(flags, flag)
 	}
-	logBuf.WriteString("\n\nUSAGE:\n  " + filepath.Base(Executable) + " [-help] " + strings.Join(flags, " "))
+	logBuf.WriteString("\n\nUSAGE:\n  " + filepath.Base(executable) + " [-help] " + strings.Join(flags, " "))
 
 	if len(Flags.ArgumentDescriptions) > 0 {
 		for _, args := range Flags.ArgumentDescriptions {
