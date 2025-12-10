@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -67,6 +68,10 @@ func (f *flags) Var(field any, name, syntax, detail string) {
 		f.BoolVar(field, name, *field, detail)
 	case *time.Duration:
 		f.DurationVar(field, name, *field, detail)
+	case *Options:
+		field.Selected = field.List // default is all values
+		flagSyntax[name] = fmt.Sprintf("[%s %s|none]", syntax, strings.Join(field.List, ","))
+		f.FlagSet.Var(field, name, detail+". Specify 'none' to disable capture of all "+name)
 	default:
 		f.FlagSet.Var(field.(flag.Value), name, detail)
 	}
@@ -169,9 +174,41 @@ func (r *Regexp) Set(pattern string) (err error) {
 }
 
 // String is a flag.Value interface method to enable Regexp as a command line flag.
-func (r *Regexp) String() string {
+func (r Regexp) String() string {
 	if r.Regexp == nil {
 		return ""
 	}
 	return r.Regexp.String()
+}
+
+// Options is a command line flag type.
+type (
+	Options struct {
+		List     []string
+		Selected []string
+	}
+)
+
+// Set is a flag.Value interface method to enable Options as a command line flag.
+func (o *Options) Set(text string) error {
+	if text == "none" {
+		o.Selected = []string{"none"}
+		return nil
+	}
+	var ss []string
+	for s := range strings.SplitSeq(text, ",") {
+		if slices.Contains(o.List, s) {
+			ss = append(ss, s)
+		} else {
+			return fmt.Errorf("option %s not found in %v", s, o.List)
+		}
+	}
+	slices.Sort(ss)
+	o.Selected = ss
+	return nil
+}
+
+// String is a flag.Value interface method to enable Options as a command line flag.
+func (o Options) String() string {
+	return strings.Join(o.Selected, ",")
 }

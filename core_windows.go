@@ -10,7 +10,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/StackExchange/wmi"
+	"github.com/yusufpapurcu/wmi"
 
 	"golang.org/x/sys/windows"
 )
