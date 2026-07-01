@@ -30,7 +30,7 @@ func Format(name, tag string, val reflect.Value, fn Formatter) (ms []any) {
 		switch val.Kind() {
 		case reflect.Invalid:
 			return nil
-		case reflect.Interface, reflect.Ptr:
+		case reflect.Interface, reflect.Pointer:
 			if val.IsNil() { // documentation
 				if val.Kind() == reflect.Interface {
 					ms = append(ms, fn(name, tag, val))
